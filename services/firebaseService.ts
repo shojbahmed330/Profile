@@ -11,9 +11,6 @@ import { DEFAULT_AVATARS, DEFAULT_COVER_PHOTOS, CLOUDINARY_CLOUD_NAME, CLOUDINAR
 
 const { serverTimestamp, increment, arrayUnion, arrayRemove, Timestamp } = firebase.firestore.FieldValue;
 
-// A temporary, module-level variable to hold details during the signup transition.
-let pendingSignupDetails: { fullName: string; username: string } | null = null;
-
 
 // --- Helper Functions ---
 const docToUser = (doc: firebase.firestore.DocumentSnapshot): User => {
@@ -112,66 +109,43 @@ const matchesTargeting = (campaign: Campaign, user: User): boolean => {
 export const firebaseService = {
     // --- Authentication ---
     onAuthStateChanged: (callback: (result: { user: User | null; isNew: boolean }) => void) => {
+        const getUserProfileWithRetry = async (uid: string, retries = 5, delay = 800): Promise<User | null> => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const profile = await firebaseService.getUserProfileById(uid);
+                    if (profile) {
+                        return profile;
+                    }
+                    console.warn(`Sign-up race condition detected. Retrying profile fetch (${i + 1}/${retries})...`);
+                    await new Promise(res => setTimeout(res, delay * (i + 1))); // increase delay each time
+                } catch (error) {
+                    console.error(`Error during profile fetch retry:`, error);
+                }
+            }
+            return null;
+        };
+    
         return auth.onAuthStateChanged(async (firebaseUser: FirebaseUser | null) => {
             if (firebaseUser) {
+                // Check if the user was just created by comparing creation and last sign-in times
                 const { creationTime, lastSignInTime } = firebaseUser.metadata;
-                // A reliable way to check for a new user is to see if the creation and last sign-in times are very close.
-                const isNewUser = !creationTime || !lastSignInTime || (new Date(lastSignInTime).getTime() - new Date(creationTime).getTime() < 5000); // 5-second window
-
-                let userProfile = await firebaseService.getUserProfileById(firebaseUser.uid);
-
-                // **CRITICAL FIX**: If the user is new AND their profile doesn't exist in Firestore yet, create it now.
-                // This ensures the auth state is fully propagated before the Firestore write, solving the permission error.
-                if (isNewUser && !userProfile && pendingSignupDetails) {
-                    const { fullName, username } = pendingSignupDetails;
-                    pendingSignupDetails = null; // Consume details to prevent reuse
-
-                    const userRef = db.collection('users').doc(firebaseUser.uid);
-                    const usernameRef = db.collection('usernames').doc(username.toLowerCase());
-
-                    const newUserProfileData = {
-                        name: fullName,
-                        name_lowercase: fullName.toLowerCase(),
-                        username: username.toLowerCase(),
-                        email: firebaseUser.email!.toLowerCase(),
-                        avatarUrl: DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)],
-                        bio: `Welcome to VoiceBook, I'm ${fullName.split(' ')[0]}!`,
-                        coverPhotoUrl: DEFAULT_COVER_PHOTOS[Math.floor(Math.random() * DEFAULT_COVER_PHOTOS.length)],
-                        privacySettings: { postVisibility: 'public', friendRequestPrivacy: 'everyone' },
-                        notificationSettings: { likes: true, comments: true, friendRequests: true },
-                        blockedUserIds: [],
-                        voiceCoins: 100,
-                        role: 'user',
-                        isBanned: false,
-                        friendIds: [],
-                        pendingFriendRequests: [],
-                        sentFriendRequests: [],
-                        createdAt: Timestamp.now(),
-                        lastActiveTimestamp: Timestamp.now(),
-                    };
-
-                    const batch = db.batch();
-                    batch.set(userRef, newUserProfileData);
-                    batch.set(usernameRef, { userId: firebaseUser.uid });
-                    
-                    try {
-                        await batch.commit();
-                        // After successful creation, fetch the profile again to pass to the app.
-                        userProfile = await firebaseService.getUserProfileById(firebaseUser.uid);
-                    } catch (error) {
-                        console.error("CRITICAL: Failed to create user profile in Firestore after auth success.", error);
-                        // This is a bad state; the Auth user exists but the DB profile doesn't.
-                        // For this app, we'll sign them out to let them try again.
-                        await auth.signOut();
-                        callback({ user: null, isNew: false });
-                        return;
-                    }
+                const isNewUser = !creationTime || !lastSignInTime || (new Date(creationTime).getTime() === new Date(lastSignInTime).getTime());
+    
+                let userProfile: User | null;
+    
+                if (isNewUser) {
+                    // If it's a new user, retry fetching to account for the database write latency.
+                    userProfile = await getUserProfileWithRetry(firebaseUser.uid);
+                } else {
+                    // For existing users, a single fetch is usually fine.
+                    userProfile = await firebaseService.getUserProfileById(firebaseUser.uid);
                 }
                 
                 if (userProfile && !userProfile.isDeactivated && !userProfile.isBanned) {
                     callback({ user: userProfile, isNew: isNewUser });
                 } else {
-                    console.error(`User profile not found or user is banned/deactivated. UID: ${firebaseUser.uid}. Signing out.`);
+                    // If profile is still not found after retries, or user is banned/deactivated, sign them out.
+                    console.error(`User profile not found for uid: ${firebaseUser.uid} after retries, or user is banned/deactivated. Signing out.`);
                     await auth.signOut();
                     callback({ user: null, isNew: false });
                 }
@@ -183,14 +157,40 @@ export const firebaseService = {
 
     async signUpWithEmail(email: string, pass: string, fullName: string, username: string): Promise<boolean> {
         try {
-            // **REFACTORED**: Temporarily store the full name and username.
-            // This function will now ONLY create the Auth user. The onAuthStateChanged listener will handle creating the Firestore document.
-            pendingSignupDetails = { fullName, username };
-            await auth.createUserWithEmailAndPassword(email, pass);
-            return true; // The listener will handle the full workflow from here.
+            const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+            const user = userCredential.user;
+            if (user) {
+                const userRef = db.collection('users').doc(user.uid);
+                const usernameRef = db.collection('usernames').doc(username.toLowerCase());
+
+                const newUserProfile: Omit<User, 'id'> = {
+                    name: fullName,
+                    name_lowercase: fullName.toLowerCase(),
+                    username: username.toLowerCase(),
+                    email: email.toLowerCase(),
+                    avatarUrl: DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)],
+                    bio: `Welcome to VoiceBook, I'm ${fullName.split(' ')[0]}!`,
+                    coverPhotoUrl: DEFAULT_COVER_PHOTOS[Math.floor(Math.random() * DEFAULT_COVER_PHOTOS.length)],
+                    privacySettings: { postVisibility: 'public', friendRequestPrivacy: 'everyone' },
+                    blockedUserIds: [],
+                    voiceCoins: 100,
+                    role: 'user', // Added to satisfy security rule
+                    isBanned: false, // Added to satisfy security rule
+                    createdAt: serverTimestamp(),
+                    lastActiveTimestamp: serverTimestamp(), // ATOMIC FIX: Set initial timestamp on creation
+                };
+                
+                // Use a batched write for an atomic operation to prevent permission errors
+                const batch = db.batch();
+                batch.set(userRef, newUserProfile);
+                batch.set(usernameRef, { userId: user.uid });
+                await batch.commit();
+
+                return true;
+            }
+            return false;
         } catch (error) {
-            console.error("Sign up (Auth creation) error:", error);
-            pendingSignupDetails = null; // Clear details on failure
+            console.error("Sign up error:", error);
             return false;
         }
     },
