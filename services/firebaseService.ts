@@ -19,6 +19,28 @@ const Timestamp = firebase.firestore.Timestamp;
 // A temporary, module-level variable to hold details during the signup transition.
 let pendingSignupDetails: { fullName: string; username: string; } | null = null;
 
+const generateUniqueUsername = async (fullName: string): Promise<string> => {
+    let baseUsername = fullName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
+    if (!baseUsername) {
+        baseUsername = 'user';
+    }
+
+    let finalUsername = baseUsername;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (await firebaseService.isUsernameTaken(finalUsername)) {
+        if (attempts >= maxAttempts) {
+            // Fallback for extreme cases
+            finalUsername = `user${Date.now()}`;
+            break;
+        }
+        finalUsername = `${baseUsername}${Math.floor(1000 + Math.random() * 9000)}`;
+        attempts++;
+    }
+    return finalUsername;
+};
+
 
 // --- Helper Functions ---
 const docToUser = (doc: firebase.firestore.DocumentSnapshot): User => {
@@ -130,7 +152,6 @@ export const firebaseService = {
 
                     await firebaseUser.getIdToken(true);
 
-                    // Since username is pre-validated in AuthScreen, we use it directly.
                     const uniqueUsername = username;
 
                     const userRef = db.collection('users').doc(firebaseUser.uid);

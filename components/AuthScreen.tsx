@@ -73,10 +73,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
             case AuthMode.SIGNUP_USERNAME:
                  const formattedUsername = cleanedText.toLowerCase().replace(/\s/g, '');
                  const isTaken = await firebaseService.isUsernameTaken(formattedUsername);
-                 if(isTaken || formattedUsername.length < 3) {
-                     onSetTtsMessage(getTtsPrompt('signup_username_invalid', language));
-                     setAuthError(getTtsPrompt('signup_username_invalid', language));
-                     break;
+                 if(isTaken) {
+                    onSetTtsMessage(getTtsPrompt('signup_username_invalid', language));
+                    setAuthError(getTtsPrompt('signup_username_invalid', language));
+                    break;
                  }
                  setUsername(formattedUsername);
                  setMode(AuthMode.SIGNUP_EMAIL);
