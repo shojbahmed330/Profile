@@ -97,10 +97,10 @@ export const DEFAULT_AVATARS: string[] = [
 ];
 
 export const DEFAULT_COVER_PHOTOS: string[] = [
-    'https://github.com/user-attachments/assets/de890f5c-75c1-4b13-8894-353272d7f87a',
-    'https://github.com/user-attachments/assets/a3311f67-a226-4073-82b2-5f8021c5b8f6',
-    'https://github.com/user-attachments/assets/7b16a241-118c-4f51-9252-94a5c0b0373b',
-    'https://github.com/user-attachments/assets/0593c6f8-0f18-4a11-aa90-b1d55648a04b',
+    'https://picsum.photos/id/1018/1200/400',
+    'https://picsum.photos/id/1043/1200/400',
+    'https://picsum.photos/id/10/1200/400',
+    'https://picsum.photos/id/1015/1200/400',
 ];
 
 export const GROUP_CATEGORIES: GroupCategory[] = [

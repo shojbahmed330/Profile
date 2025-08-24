@@ -262,11 +262,12 @@ const UserApp: React.FC = () => {
   }, []);
   
   // This effect ensures that if the user logs out, they are returned to the Auth screen.
+  // It now depends on the primitive `currentView.view` to avoid re-running on every render.
   useEffect(() => {
     if (!user && !isAuthLoading && currentView?.view !== AppView.AUTH) {
         setViewStack([{ view: AppView.AUTH }]);
     }
-  }, [user, isAuthLoading, currentView]);
+  }, [user, isAuthLoading, currentView?.view]);
 
   const goBack = () => {
     if (viewStack.length > 1) {
