@@ -589,7 +589,92 @@ export const firebaseService = {
         await db.collection('users').doc(userId).update(updates);
     },
     
-     async searchUsers(query: string): Promise<User[]> {
+    async updateProfilePicture(userId: string, base64Url: string, caption: string): Promise<{ updatedUser: User, newPost: Post } | null> {
+        try {
+            const userRef = db.collection('users').doc(userId);
+            const postsRef = db.collection('posts');
+    
+            const blob = await fetch(base64Url).then(res => res.blob());
+            const { url: newAvatarUrl } = await uploadMediaToCloudinary(blob, `avatar_${userId}_${Date.now()}.jpeg`);
+    
+            const userDoc = await userRef.get();
+            if (!userDoc.exists) throw new Error("User not found");
+            const user = docToUser(userDoc);
+    
+            const newPostData = {
+                author: { id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl },
+                caption: caption || `${user.name} updated their profile picture.`,
+                createdAt: serverTimestamp(),
+                postType: 'profile_picture_change',
+                newPhotoUrl: newAvatarUrl,
+                commentCount: 0,
+                comments: [],
+                reactions: {},
+                status: 'approved',
+            };
+    
+            const batch = db.batch();
+            batch.update(userRef, { avatarUrl: newAvatarUrl });
+            const newPostRef = postsRef.doc();
+            batch.set(newPostRef, newPostData);
+            await batch.commit();
+            
+            const updatedUser = { ...user, avatarUrl: newAvatarUrl };
+            const newPostForUI = { 
+                ...newPostData, 
+                id: newPostRef.id, 
+                createdAt: new Date().toISOString(),
+                author: { ...newPostData.author, avatarUrl: newAvatarUrl }
+            } as Post;
+            
+            return { updatedUser, newPost: newPostForUI };
+        } catch (error) {
+            console.error("Failed to update profile picture in Firebase:", error);
+            return null;
+        }
+    },
+    
+    async updateCoverPhoto(userId: string, base64Url: string, caption: string): Promise<{ updatedUser: User, newPost: Post } | null> {
+        try {
+            const userRef = db.collection('users').doc(userId);
+            const postsRef = db.collection('posts');
+    
+            const blob = await fetch(base64Url).then(res => res.blob());
+            const { url: newCoverUrl } = await uploadMediaToCloudinary(blob, `cover_${userId}_${Date.now()}.jpeg`);
+            
+            const userDoc = await userRef.get();
+            if (!userDoc.exists) throw new Error("User not found");
+            const user = docToUser(userDoc);
+            
+            const newPostData = {
+                author: { id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl },
+                caption: caption || `${user.name} updated their cover photo.`,
+                createdAt: serverTimestamp(),
+                postType: 'cover_photo_change',
+                newPhotoUrl: newCoverUrl,
+                commentCount: 0,
+                comments: [],
+                reactions: {},
+                status: 'approved',
+            };
+    
+            const batch = db.batch();
+            batch.update(userRef, { coverPhotoUrl: newCoverUrl });
+            const newPostRef = postsRef.doc();
+            batch.set(newPostRef, newPostData);
+            await batch.commit();
+    
+            const updatedUser = { ...user, coverPhotoUrl: newCoverUrl };
+            const newPostForUI = { ...newPostData, id: newPostRef.id, createdAt: new Date().toISOString() } as Post;
+            
+            return { updatedUser, newPost: newPostForUI };
+        } catch (error) {
+            console.error("Failed to update cover photo in Firebase:", error);
+            return null;
+        }
+    },
+
+    async searchUsers(query: string): Promise<User[]> {
         const lowerQuery = query.toLowerCase();
         const nameQuery = db.collection('users').where('name_lowercase', '>=', lowerQuery).where('name_lowercase', '<=', lowerQuery + '\uf8ff');
         const usernameQuery = db.collection('users').where('username', '>=', lowerQuery).where('username', '<=', lowerQuery + '\uf8ff');

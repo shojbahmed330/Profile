@@ -1,3 +1,4 @@
+
 {
   "common": {
     "loading": "লোড হচ্ছে...",
@@ -96,7 +97,13 @@
     "changeCover": "কভার পরিবর্তন করুন",
     "changeAvatar": "প্রোফাইল ছবি পরিবর্তন করুন",
     "dropToUpdateCover": "কভার ছবি আপডেট করতে এখানে ফেলুন",
-    "dropToUpdateAvatar": "ছবি ফেলুন"
+    "dropToUpdateAvatar": "ছবি ফেলুন",
+    "addBio": "আপনার প্রোফাইলে একটি বায়ো যোগ করুন",
+    "addWork": "কর্মস্থল যোগ করুন",
+    "addEducation": "শিক্ষাগত যোগ্যতা যোগ করুন",
+    "addCurrentCity": "বর্তমান শহর যোগ করুন",
+    "addHometown": "নিজ শহর যোগ করুন",
+    "addRelationship": "সম্পর্কের অবস্থা যোগ করুন"
   },
   "settings": {
     "title": "সেটিংস",

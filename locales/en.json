@@ -1,3 +1,4 @@
+
 {
   "common": {
     "loading": "Loading...",
@@ -96,7 +97,13 @@
     "changeCover": "Change Cover",
     "changeAvatar": "Change profile picture",
     "dropToUpdateCover": "Drop to update cover photo",
-    "dropToUpdateAvatar": "Drop Image"
+    "dropToUpdateAvatar": "Drop Image",
+    "addBio": "Add a bio to your profile",
+    "addWork": "Add work information",
+    "addEducation": "Add education information",
+    "addCurrentCity": "Add current city",
+    "addHometown": "Add hometown",
+    "addRelationship": "Add relationship status"
   },
   "settings": {
     "title": "Settings",

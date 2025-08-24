@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Post, FriendshipStatus, ScrollState, AppView } from '../types';
 import { PostCard } from './PostCard';
@@ -441,7 +442,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             </div>
                             <div className="flex-grow text-center sm:text-left mb-2">
                                 <h2 className="text-3xl font-bold text-slate-100">{profileUser.name}</h2>
-                                <p className="text-slate-400 mt-1">{profileUser.bio}</p>
+                                { (profileUser.bio || isOwnProfile) &&
+                                    <p className="text-slate-400 mt-1">
+                                        {profileUser.bio ? profileUser.bio : 
+                                            <button onClick={onEditProfile} className="text-sky-400 hover:underline">
+                                                {t(language, 'profile.addBio')}
+                                            </button>
+                                        }
+                                    </p>
+                                }
                             </div>
                              <div className="flex justify-center sm:justify-end gap-3 mb-2">
                                 {isOwnProfile ? (
@@ -465,11 +474,47 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                         {t(language, 'profile.voiceCoins', { count: profileUser.voiceCoins })}
                                     </AboutItem>
                                 )}
-                                {profileUser.work && <AboutItem iconName="briefcase">{t(language, 'profile.worksAt')} <strong>{profileUser.work}</strong></AboutItem>}
-                                {profileUser.education && <AboutItem iconName="academic-cap">{t(language, 'profile.studiedAt')} <strong>{profileUser.education}</strong></AboutItem>}
-                                {profileUser.currentCity && <AboutItem iconName="map-pin">{t(language, 'profile.livesIn')} <strong>{profileUser.currentCity}</strong></AboutItem>}
-                                {profileUser.hometown && <AboutItem iconName="home">{t(language, 'profile.from')} <strong>{profileUser.hometown}</strong></AboutItem>}
-                                {profileUser.relationshipStatus && profileUser.relationshipStatus !== 'Prefer not to say' && <AboutItem iconName="like"><strong>{profileUser.relationshipStatus}</strong></AboutItem>}
+                                
+                                { (profileUser.work || isOwnProfile) && 
+                                    <AboutItem iconName="briefcase">
+                                        {profileUser.work 
+                                            ? <>{t(language, 'profile.worksAt')} <strong>{profileUser.work}</strong></>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addWork')}</button>
+                                        }
+                                    </AboutItem>
+                                }
+                                { (profileUser.education || isOwnProfile) && 
+                                    <AboutItem iconName="academic-cap">
+                                        {profileUser.education 
+                                            ? <>{t(language, 'profile.studiedAt')} <strong>{profileUser.education}</strong></>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addEducation')}</button>
+                                        }
+                                    </AboutItem>
+                                }
+                                { (profileUser.currentCity || isOwnProfile) && 
+                                    <AboutItem iconName="map-pin">
+                                        {profileUser.currentCity 
+                                            ? <>{t(language, 'profile.livesIn')} <strong>{profileUser.currentCity}</strong></>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addCurrentCity')}</button>
+                                        }
+                                    </AboutItem>
+                                }
+                                { (profileUser.hometown || isOwnProfile) && 
+                                    <AboutItem iconName="home">
+                                        {profileUser.hometown 
+                                            ? <>{t(language, 'profile.from')} <strong>{profileUser.hometown}</strong></>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addHometown')}</button>
+                                        }
+                                    </AboutItem>
+                                }
+                                { ( (profileUser.relationshipStatus && profileUser.relationshipStatus !== 'Prefer not to say') || isOwnProfile) && 
+                                    <AboutItem iconName="like">
+                                        {profileUser.relationshipStatus && profileUser.relationshipStatus !== 'Prefer not to say'
+                                            ? <strong>{profileUser.relationshipStatus}</strong>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addRelationship')}</button>
+                                        }
+                                    </AboutItem>
+                                }
                             </div>
                         </div>
                     </aside>
