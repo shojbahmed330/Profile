@@ -180,8 +180,8 @@ export const firebaseService = {
                     friendIds: [],
                     pendingFriendRequests: [],
                     sentFriendRequests: [],
-                    createdAt: serverTimestamp(),
-                    lastActiveTimestamp: serverTimestamp(), // ATOMIC FIX: Set initial timestamp on creation
+                    createdAt: Timestamp.now(),
+                    lastActiveTimestamp: Timestamp.now(),
                 };
                 
                 // Use a batched write for an atomic operation to prevent permission errors
