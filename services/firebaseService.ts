@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -108,7 +109,7 @@ const matchesTargeting = (campaign: Campaign, user: User): boolean => {
 // --- Service Definition ---
 export const firebaseService = {
     // --- Authentication ---
-    onAuthStateChanged: (callback: (user: User | null) => void) => {
+    onAuthStateChanged: (callback: (result: { user: User | null; isNew: boolean }) => void) => {
         const getUserProfileWithRetry = async (uid: string, retries = 5, delay = 800): Promise<User | null> => {
             for (let i = 0; i < retries; i++) {
                 try {
@@ -142,15 +143,15 @@ export const firebaseService = {
                 }
                 
                 if (userProfile && !userProfile.isDeactivated && !userProfile.isBanned) {
-                    callback(userProfile);
+                    callback({ user: userProfile, isNew: isNewUser });
                 } else {
                     // If profile is still not found after retries, or user is banned/deactivated, sign them out.
                     console.error(`User profile not found for uid: ${firebaseUser.uid} after retries, or user is banned/deactivated. Signing out.`);
                     await auth.signOut();
-                    callback(null);
+                    callback({ user: null, isNew: false });
                 }
             } else {
-                callback(null);
+                callback({ user: null, isNew: false });
             }
         });
     },

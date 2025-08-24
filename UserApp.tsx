@@ -191,7 +191,7 @@ const UserApp: React.FC = () => {
       let unsubscribeNotifications = () => {};
       let activityInterval: number | null = null;
 
-      const unsubscribeAuth = firebaseService.onAuthStateChanged(async (userProfile) => {
+      const unsubscribeAuth = firebaseService.onAuthStateChanged(async ({ user: userProfile, isNew: isNewUser }) => {
           // Always clean up previous user's listeners first
           unsubscribePosts();
           unsubscribeReelsPosts();
@@ -209,7 +209,11 @@ const UserApp: React.FC = () => {
               unsubscribeFriends = firebaseService.listenToFriends(userProfile.id, (friendsList) => { setFriends(friendsList); });
               unsubscribeNotifications = firebaseService.listenToNotifications(userProfile.id, (newNotifications) => { setNotifications(newNotifications); });
               
-              firebaseService.updateUserLastActive(userProfile.id);
+              // For brand new users, don't make the initial 'last active' call to avoid the race condition.
+              // The interval will handle the first update after a minute.
+              if (!isNewUser) {
+                   firebaseService.updateUserLastActive(userProfile.id);
+              }
               activityInterval = window.setInterval(() => firebaseService.updateUserLastActive(userProfile.id), 60 * 1000);
           } else {
               // User logged out, clear all data and return to auth screen
