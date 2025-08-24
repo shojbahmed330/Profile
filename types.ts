@@ -57,6 +57,7 @@ export interface User {
   friendIds?: string[];
   pendingFriendRequests?: string[];
   sentFriendRequests?: string[];
+  isOffline?: boolean; // Flag for temporary offline user objects
 }
 
 export interface Author {

@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -141,6 +142,7 @@ export const firebaseService = {
                         blockedUserIds: [],
                         voiceCoins: 0,
                         createdAt: new Date().toISOString(),
+                        isOffline: true, // Flag to indicate this is not a real DB user
                     };
                     callback(fallbackUser);
                 }
