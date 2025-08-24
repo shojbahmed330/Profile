@@ -9,7 +9,11 @@ import { db, auth, storage } from './firebaseConfig';
 import { User, Post, Comment, Message, ReplyInfo, Story, Group, Campaign, LiveAudioRoom, LiveVideoRoom, Report, Notification, Lead, Author } from '../types';
 import { DEFAULT_AVATARS, DEFAULT_COVER_PHOTOS, CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET, SPONSOR_CPM_BDT } from '../constants';
 
-const { serverTimestamp, increment, arrayUnion, arrayRemove, Timestamp } from firebase.firestore.FieldValue;
+const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
+const increment = firebase.firestore.FieldValue.increment;
+const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
+const arrayRemove = firebase.firestore.FieldValue.arrayRemove;
+const Timestamp = firebase.firestore.Timestamp;
 
 // A temporary, module-level variable to hold details during the signup transition.
 let pendingSignupDetails: { fullName: string; username: string } | null = null;
