@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -16,7 +17,7 @@ const arrayRemove = firebase.firestore.FieldValue.arrayRemove;
 const Timestamp = firebase.firestore.Timestamp;
 
 // A temporary, module-level variable to hold details during the signup transition.
-let pendingSignupDetails: { fullName: string; username: string } | null = null;
+let pendingSignupDetails: { fullName: string; username: string; } | null = null;
 
 
 // --- Helper Functions ---
@@ -119,29 +120,26 @@ export const firebaseService = {
         return auth.onAuthStateChanged(async (firebaseUser: FirebaseUser | null) => {
             if (firebaseUser) {
                 const { creationTime, lastSignInTime } = firebaseUser.metadata;
-                // A reliable way to check for a new user is to see if the creation and last sign-in times are very close.
-                const isNewUser = !creationTime || !lastSignInTime || (new Date(lastSignInTime).getTime() - new Date(creationTime).getTime() < 5000); // 5-second window
+                const isNewUser = !creationTime || !lastSignInTime || (new Date(lastSignInTime).getTime() - new Date(creationTime).getTime() < 5000);
 
                 let userProfile = await firebaseService.getUserProfileById(firebaseUser.uid);
 
-                // **CRITICAL FIX**: If the user is new AND their profile doesn't exist in Firestore yet, create it now.
-                // This ensures the auth state is fully propagated before the Firestore write, solving the permission error.
                 if (isNewUser && !userProfile && pendingSignupDetails) {
                     const { fullName, username } = pendingSignupDetails;
-                    pendingSignupDetails = null; // Consume details to prevent reuse
+                    pendingSignupDetails = null;
 
-                    // **DEFINITIVE FIX**: Force a token refresh from the server.
-                    // This guarantees that the Firebase backend has fully processed the new authentication state
-                    // before we attempt a Firestore write that depends on security rules checking `request.auth`.
                     await firebaseUser.getIdToken(true);
 
+                    // Since username is pre-validated in AuthScreen, we use it directly.
+                    const uniqueUsername = username;
+
                     const userRef = db.collection('users').doc(firebaseUser.uid);
-                    const usernameRef = db.collection('usernames').doc(username.toLowerCase());
+                    const usernameRef = db.collection('usernames').doc(uniqueUsername);
 
                     const newUserProfileData = {
                         name: fullName,
                         name_lowercase: fullName.toLowerCase(),
-                        username: username.toLowerCase(),
+                        username: uniqueUsername,
                         email: firebaseUser.email!.toLowerCase(),
                         avatarUrl: DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)],
                         bio: `Welcome to VoiceBook, I'm ${fullName.split(' ')[0]}!`,
@@ -165,12 +163,9 @@ export const firebaseService = {
                     
                     try {
                         await batch.commit();
-                        // After successful creation, fetch the profile again to pass to the app.
                         userProfile = await firebaseService.getUserProfileById(firebaseUser.uid);
                     } catch (error) {
                         console.error("CRITICAL: Failed to create user profile in Firestore after auth success.", error);
-                        // This is a bad state; the Auth user exists but the DB profile doesn't.
-                        // For this app, we'll sign them out to let them try again.
                         await auth.signOut();
                         callback({ user: null, isNew: false });
                         return;
@@ -192,14 +187,12 @@ export const firebaseService = {
 
     async signUpWithEmail(email: string, pass: string, fullName: string, username: string): Promise<boolean> {
         try {
-            // **REFACTORED**: Temporarily store the full name and username.
-            // This function will now ONLY create the Auth user. The onAuthStateChanged listener will handle creating the Firestore document.
             pendingSignupDetails = { fullName, username };
             await auth.createUserWithEmailAndPassword(email, pass);
-            return true; // The listener will handle the full workflow from here.
+            return true;
         } catch (error) {
             console.error("Sign up (Auth creation) error:", error);
-            pendingSignupDetails = null; // Clear details on failure
+            pendingSignupDetails = null;
             return false;
         }
     },
@@ -212,7 +205,6 @@ export const firebaseService = {
         if (emailRegex.test(lowerIdentifier)) {
             emailToSignIn = lowerIdentifier;
         } else {
-            // It's a username, look it up in the 'usernames' collection
             try {
                 const usernameDocRef = db.collection('usernames').doc(lowerIdentifier);
                 const usernameDoc = await usernameDocRef.get();
@@ -249,8 +241,6 @@ export const firebaseService = {
     signOutUser: () => auth.signOut(),
 
     async isUsernameTaken(username: string): Promise<boolean> {
-        // Checks a public collection 'usernames' where each doc ID is a username.
-        // This is more secure as it doesn't require querying the private 'users' collection.
         const usernameDocRef = db.collection('usernames').doc(username.toLowerCase());
         const usernameDoc = await usernameDocRef.get();
         return usernameDoc.exists;
@@ -270,8 +260,6 @@ export const firebaseService = {
             return [];
         }
         const usersRef = db.collection('users');
-        // Firestore 'in' query is limited to 10 items.
-        // We need to batch the requests if there are more than 10.
         const userPromises: Promise<firebase.firestore.QuerySnapshot>[] = [];
         for (let i = 0; i < userIds.length; i += 10) {
             const chunk = userIds.slice(i, i + 10);
@@ -303,7 +291,6 @@ export const firebaseService = {
                 const friendPromises = friendIds.map(id => this.getUserProfileById(id));
                 const friends = (await Promise.all(friendPromises)).filter(f => f !== null) as User[];
                 
-                // Mock online status for the demo
                 const friendsWithStatus = friends.map((friend, index) => ({
                     ...friend,
                     onlineStatus: index % 3 === 0 ? 'online' : 'offline',
@@ -379,7 +366,6 @@ export const firebaseService = {
 
         const userId = user.id;
 
-        // Handle file upload (photo/video) via Cloudinary
         if (media.mediaFile) {
             const { url, type } = await uploadMediaToCloudinary(media.mediaFile, `post_${userId}_${Date.now()}`);
             if (type === 'video') {
@@ -389,14 +375,12 @@ export const firebaseService = {
             }
         }
         
-        // Handle AI generated image (base64 data URL)
         if (media.generatedImageBase64) {
             const blob = await fetch(media.generatedImageBase64).then(res => res.blob());
             const { url } = await uploadMediaToCloudinary(blob, `post_ai_${userId}_${Date.now()}.jpeg`);
             postToSave.imageUrl = url;
         }
 
-        // Handle audio blob URL
         if (media.audioBlobUrl) {
             const audioBlob = await fetch(media.audioBlobUrl).then(r => r.blob());
             const { url } = await uploadMediaToCloudinary(audioBlob, `post_audio_${userId}_${Date.now()}.webm`);
@@ -416,7 +400,6 @@ export const firebaseService = {
 
             const postData = postDoc.data() as Post;
 
-            // Security check: only the author can delete the post
             if (postData.author.id !== userId) {
                 console.error("Permission denied: User is not the author of the post.");
                 return false;
@@ -439,16 +422,13 @@ export const firebaseService = {
                 if (!postDoc.exists) throw "Post does not exist!";
     
                 const postData = postDoc.data() as Post;
-                // New data structure: { [userId]: emoji }
                 const reactions = { ...(postData.reactions || {}) };
                 
                 const userPreviousReaction = reactions[userId];
     
                 if (userPreviousReaction === newReaction) {
-                    // User is toggling off their reaction.
                     delete reactions[userId];
                 } else {
-                    // User is adding a new reaction or changing their existing one.
                     reactions[userId] = newReaction;
                 }
                 
@@ -470,12 +450,12 @@ export const firebaseService = {
         const postRef = db.collection('posts').doc(postId);
     
         const newComment: any = {
-            id: db.collection('posts').doc().id, // Pre-generate ID for file naming
+            id: db.collection('posts').doc().id,
             postId,
             author: {
                 id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl,
             },
-            createdAt: new Date().toISOString(), // Temporary client-side timestamp
+            createdAt: new Date().toISOString(),
         };
     
         if (data.audioBlob && data.duration) {
@@ -494,9 +474,8 @@ export const firebaseService = {
             throw new Error("Comment must have content.");
         }
     
-        // Prepare the object for Firestore
         const finalCommentObject = { ...newComment };
-        delete finalCommentObject.id; // ID is not stored in the array object
+        delete finalCommentObject.id;
         finalCommentObject.createdAt = new Date(); 
     
         await postRef.update({
@@ -504,7 +483,6 @@ export const firebaseService = {
             commentCount: increment(1),
         });
         
-        // Return the client-side object for immediate UI update
         return newComment as Comment;
     },
 
@@ -585,7 +563,6 @@ export const firebaseService = {
         }
     },
 
-    // --- Profile & Security ---
     async getUserProfile(username: string): Promise<User | null> {
         const q = db.collection('users').where('username', '==', username.toLowerCase()).limit(1);
         const userQuery = await q.get();
@@ -745,7 +722,6 @@ export const firebaseService = {
         }
     },
 
-    // --- Voice Coins ---
     async updateVoiceCoins(userId: string, amount: number): Promise<boolean> {
         const userRef = db.collection('users').doc(userId);
         try {
@@ -759,7 +735,6 @@ export const firebaseService = {
         }
     },
     
-    // --- Rooms ---
     listenToLiveAudioRooms(callback: (rooms: LiveAudioRoom[]) => void) {
         const q = db.collection('liveAudioRooms').where('status', '==', 'live');
         return q.onSnapshot((snapshot) => {
@@ -802,12 +777,11 @@ export const firebaseService = {
                 };
                 callback(roomData as LiveAudioRoom | LiveVideoRoom);
             } else {
-                callback(null); // Room doesn't exist or was deleted
+                callback(null);
             }
         });
     },
 
-     // --- Messages ---
     listenToMessages(chatId: string, callback: (messages: Message[]) => void) {
         const q = db.collection('chats').doc(chatId).collection('messages').orderBy('createdAt', 'asc');
         return q.onSnapshot((snapshot) => {
@@ -831,14 +805,13 @@ export const firebaseService = {
         await db.collection('chats').doc(chatId).collection('messages').add(messageWithTimestamp);
     },
 
-    // --- Stories ---
     async createStory(
         storyData: Omit<Story, 'id' | 'createdAt' | 'duration' | 'contentUrl' | 'viewedBy'>,
         mediaFile: File | null
     ): Promise<Story> {
         const storyToSave: any = {
             ...storyData,
-            author: { // Denormalize author data for reads
+            author: {
                 id: storyData.author.id,
                 name: storyData.author.name,
                 avatarUrl: storyData.author.avatarUrl,
@@ -848,9 +821,8 @@ export const firebaseService = {
             viewedBy: [],
         };
     
-        let duration = 5; // default for text/image
+        let duration = 5;
     
-        // If there's a media file (image or video), upload it
         if (mediaFile) {
             const { url, type } = await uploadMediaToCloudinary(mediaFile, `story_${storyData.author.id}_${Date.now()}`);
             storyToSave.contentUrl = url;
@@ -858,7 +830,7 @@ export const firebaseService = {
             if (type === 'video') {
                 duration = 15; 
             }
-        } else if (storyData.contentUrl) { // Handle mock gallery items that pass a URL directly
+        } else if (storyData.contentUrl) {
              const isVideo = storyData.contentUrl.endsWith('.mp4');
              if (isVideo) duration = 15;
         }
@@ -878,7 +850,6 @@ export const firebaseService = {
         return createdStory;
     },
 
-    // --- Group Member Management ---
     async promoteGroupMember(groupId: string, userToPromote: User, newRole: 'Admin' | 'Moderator'): Promise<boolean> {
         const groupRef = db.collection('groups').doc(groupId);
         const fieldToUpdate = newRole === 'Admin' ? 'admins' : 'moderators';
@@ -887,7 +858,6 @@ export const firebaseService = {
             await groupRef.update({
                 [fieldToUpdate]: arrayUnion(userRefOnly)
             });
-            // If they were a moderator and are now an admin, remove them from moderators
             if (newRole === 'Admin') {
                 await groupRef.update({
                     moderators: arrayRemove(userRefOnly)
@@ -932,7 +902,6 @@ export const firebaseService = {
         }
     },
 
-    // --- Group Request/Post Management ---
     async approveJoinRequest(groupId: string, userId: string): Promise<void> {
         const groupRef = db.collection('groups').doc(groupId);
         const user = await this.getUserProfileById(userId);
@@ -989,7 +958,6 @@ export const firebaseService = {
             const groupId = postData.groupId;
             if (!groupId) return;
 
-            // Remove from pendingPosts array on group doc
             const groupRef = db.collection('groups').doc(groupId);
             const groupDoc = await groupRef.get();
             if (groupDoc.exists) {
@@ -1002,7 +970,6 @@ export const firebaseService = {
                 }
             }
             
-            // Update post status
             await postRef.update({ status: 'approved' });
         } catch (e) {
             console.error("Approve post failed:", e);
@@ -1017,7 +984,6 @@ export const firebaseService = {
             const postData = postDoc.data() as Post;
             const groupId = postData.groupId;
 
-            // Remove from pendingPosts array on group doc
             if (groupId) {
                  const groupRef = db.collection('groups').doc(groupId);
                  const groupDoc = await groupRef.get();
@@ -1032,52 +998,43 @@ export const firebaseService = {
                  }
             }
             
-            // Actually delete the post document
             await postRef.delete();
         } catch (e) {
             console.error("Reject post failed:", e);
         }
     },
 
-    // --- Admin Panel Functions ---
     async getAdminDashboardStats() {
         const usersColl = db.collection('users');
         const postsColl = db.collection('posts');
         const campaignsColl = db.collection('campaigns');
         const reportsColl = db.collection('reports');
     
-        // 1. Get total users
         const usersSnapshot = await usersColl.get();
         const totalUsers = usersSnapshot.size;
     
-        // 2. New users today
         const twentyFourHoursAgo = firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
         const newUsersQuery = usersColl.where('createdAt', '>=', twentyFourHoursAgo);
         const newUsersSnapshot = await newUsersQuery.get();
         const newUsersToday = newUsersSnapshot.size;
     
-        // 3. Posts in last 24h
         const newPostsQuery = postsColl.where('createdAt', '>=', twentyFourHoursAgo);
         const newPostsSnapshot = await newPostsQuery.get();
         const postsLast24h = newPostsSnapshot.size;
     
-        // 4. Pending campaigns
         const pendingCampaignsQuery = campaignsColl.where('status', '==', 'pending');
         const pendingCampaignsSnapshot = await pendingCampaignsQuery.get();
         const pendingCampaigns = pendingCampaignsSnapshot.size;
     
-        // 5. Active users
         const fiveMinutesAgo = firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 5 * 60 * 1000));
         const activeUsersQuery = usersColl.where('lastActiveTimestamp', '>=', fiveMinutesAgo);
         const activeUsersSnapshot = await activeUsersQuery.get();
         const activeUsersNow = activeUsersSnapshot.size;
     
-        // 6. Pending reports
         const pendingReportsQuery = reportsColl.where('status', '==', 'pending');
         const pendingReportsSnapshot = await pendingReportsQuery.get();
         const pendingReports = pendingReportsSnapshot.size;
         
-        // 7. Pending payments
         const pendingPaymentsQuery = campaignsColl.where('paymentStatus', '==', 'pending');
         const pendingPaymentsSnapshot = await pendingPaymentsQuery.get();
         const pendingPayments = pendingPaymentsSnapshot.size;
@@ -1134,7 +1091,6 @@ export const firebaseService = {
 
     async liftUserCommentingSuspension(userId: string): Promise<boolean> {
         try {
-            // Setting to null effectively removes the suspension
             await db.collection('users').doc(userId).update({
                 commentingSuspendedUntil: null 
             });
@@ -1169,7 +1125,6 @@ export const firebaseService = {
         const postRef = db.collection('posts').doc(postId);
         try {
             await postRef.delete();
-            // In a real app, also delete associated media from storage.
             return true;
         } catch (error) {
             console.error("Error deleting post as admin:", error);
@@ -1189,7 +1144,7 @@ export const firebaseService = {
                 
                 if (comments.length === updatedComments.length) {
                     console.warn(`Comment ${commentId} not found on post ${postId}.`);
-                    return; // No change needed
+                    return;
                 }
                 
                 transaction.update(postRef, {
@@ -1215,16 +1170,11 @@ export const firebaseService = {
     async updateUserLastActive(userId: string): Promise<void> {
         const userRef = db.collection('users').doc(userId);
         try {
-            // Use a transaction to safely update only if the document exists.
-            // This prevents the race condition where set({merge:true}) tries to create a doc
-            // with incomplete data, which fails security rules.
             await db.runTransaction(async (transaction) => {
                 const userDoc = await transaction.get(userRef);
                 if (userDoc.exists) {
                     transaction.update(userRef, { lastActiveTimestamp: serverTimestamp() });
                 } else {
-                    // This can happen in a race condition right after sign-up.
-                    // It's safe to just skip the update. The next interval will catch it.
                     console.warn(`updateUserLastActive: User doc ${userId} not found, skipping update. Will retry on next interval.`);
                 }
             });
@@ -1252,17 +1202,14 @@ export const firebaseService = {
         });
     },
 
-    // New functions for tiered moderation
     async warnUser(userId: string, message: string): Promise<boolean> {
         try {
-            // Using a notification for simplicity. A dedicated 'warnings' subcollection would also be a good approach.
             const userNotifsRef = db.collection('users').doc(userId).collection('notifications');
             await userNotifsRef.add({
                 type: 'admin_warning',
                 message,
                 read: false,
                 createdAt: serverTimestamp(),
-                // Admin user info is not readily available client-side, so we use a system representation.
                 user: { id: 'system', name: 'Admin Team', avatarUrl: DEFAULT_AVATARS[0], username: 'admin' }
             });
             return true;
@@ -1300,11 +1247,9 @@ export const firebaseService = {
         const user = await this.getUserProfileById(userId);
         if (!user) return null;
 
-        // Get user's own posts
         const postsSnapshot = await db.collection('posts').where('author.id', '==', userId).orderBy('createdAt', 'desc').limit(10).get();
         const posts = postsSnapshot.docs.map(docToPost);
 
-        // Get reports against the user
         const reportsSnapshot = await db.collection('reports').where('reportedUserId', '==', userId).orderBy('createdAt', 'desc').limit(10).get();
         const reports = reportsSnapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -1312,8 +1257,6 @@ export const firebaseService = {
             createdAt: doc.data().createdAt?.toDate().toISOString() || new Date().toISOString(),
         } as Report));
         
-        // Get user's comments (inefficient scan, acceptable for a limited-scope admin tool)
-        // This is a known limitation due to the denormalized data structure.
         const recentPostsSnapshot = await db.collection('posts').orderBy('createdAt', 'desc').limit(100).get();
         const comments: Comment[] = [];
         recentPostsSnapshot.docs.forEach(doc => {
@@ -1334,7 +1277,7 @@ export const firebaseService = {
         try {
             const usersSnapshot = await db.collection('users').get();
             if (usersSnapshot.empty) {
-                return true; // No users to notify
+                return true;
             }
 
             const batch = db.batch();
@@ -1395,7 +1338,6 @@ export const firebaseService = {
         }
     },
     
-    // --- Notifications ---
     listenToNotifications(userId: string, callback: (notifications: Notification[]) => void): () => void {
         const notificationsRef = db.collection('users').doc(userId).collection('notifications').orderBy('createdAt', 'desc').limit(30);
         return notificationsRef.onSnapshot(snapshot => {
@@ -1458,7 +1400,7 @@ export const firebaseService = {
             });
         } catch (error) {
             console.error("Failed to track ad click:", error);
-            // Fail silently, as this is a background task and shouldn't block the user.
+            return false;
         }
     },
 
@@ -1471,7 +1413,7 @@ export const firebaseService = {
         return {
             id: docRef.id,
             ...leadData,
-            createdAt: new Date().toISOString(), // Return client-side version for immediate use
+            createdAt: new Date().toISOString(),
         };
     },
 

@@ -71,17 +71,17 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                 onSetTtsMessage(getTtsPrompt('signup_username', language));
                 break;
             case AuthMode.SIGNUP_USERNAME:
-                const formattedUsername = cleanedText.toLowerCase().replace(/\s/g, '');
-                const isTaken = await firebaseService.isUsernameTaken(formattedUsername);
-                if(isTaken) {
-                    onSetTtsMessage(getTtsPrompt('signup_username_invalid', language));
-                    setAuthError(getTtsPrompt('signup_username_invalid', language));
-                    break;
-                }
-                setUsername(formattedUsername);
-                setMode(AuthMode.SIGNUP_EMAIL);
-                onSetTtsMessage(getTtsPrompt('signup_email', language));
-                break;
+                 const formattedUsername = cleanedText.toLowerCase().replace(/\s/g, '');
+                 const isTaken = await firebaseService.isUsernameTaken(formattedUsername);
+                 if(isTaken || formattedUsername.length < 3) {
+                     onSetTtsMessage(getTtsPrompt('signup_username_invalid', language));
+                     setAuthError(getTtsPrompt('signup_username_invalid', language));
+                     break;
+                 }
+                 setUsername(formattedUsername);
+                 setMode(AuthMode.SIGNUP_EMAIL);
+                 onSetTtsMessage(getTtsPrompt('signup_email', language));
+                 break;
             case AuthMode.SIGNUP_EMAIL:
                  const formattedEmail = cleanedText.toLowerCase().replace(/\s/g, '');
                  if (!formattedEmail.includes('@') || !formattedEmail.includes('.')) {
