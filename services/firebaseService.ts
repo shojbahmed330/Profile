@@ -163,7 +163,7 @@ export const firebaseService = {
                 const userRef = db.collection('users').doc(user.uid);
                 const usernameRef = db.collection('usernames').doc(username.toLowerCase());
 
-                const newUserProfile: Omit<User, 'id' | 'createdAt'> = {
+                const newUserProfile: Omit<User, 'id'> = {
                     name: fullName,
                     name_lowercase: fullName.toLowerCase(),
                     username: username.toLowerCase(),
@@ -180,8 +180,8 @@ export const firebaseService = {
                     friendIds: [],
                     pendingFriendRequests: [],
                     sentFriendRequests: [],
-                    createdAt: Timestamp.now(),
-                    lastActiveTimestamp: Timestamp.now(),
+                    createdAt: serverTimestamp(),
+                    lastActiveTimestamp: serverTimestamp(), // ATOMIC FIX: Set initial timestamp on creation
                 };
                 
                 // Use a batched write for an atomic operation to prevent permission errors
