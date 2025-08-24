@@ -163,22 +163,27 @@ export const firebaseService = {
                     name_lowercase: fullName.toLowerCase(),
                     username: username.toLowerCase(),
                     email: email.toLowerCase(),
-                    avatarUrl: `https://placehold.co/150x150/1e293b/475569.png?text=${encodeURIComponent(fullName.charAt(0))}`,
+                    avatarUrl: DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)],
                     bio: `Welcome to VoiceBook, I'm ${fullName.split(' ')[0]}!`,
-                    coverPhotoUrl: `https://placehold.co/1200x400/1e293b/475569.png?text=%2B`,
+                    coverPhotoUrl: DEFAULT_COVER_PHOTOS[Math.floor(Math.random() * DEFAULT_COVER_PHOTOS.length)],
                     privacySettings: { postVisibility: 'public', friendRequestPrivacy: 'everyone' },
                     notificationSettings: { likes: true, comments: true, friendRequests: true },
                     blockedUserIds: [],
                     voiceCoins: 100,
+                    role: 'user', // Added to satisfy security rule
+                    isBanned: false, // Added to satisfy security rule
                     friendIds: [],
                     pendingFriendRequests: [],
                     sentFriendRequests: [],
                     createdAt: serverTimestamp(),
                 };
                 
-                // In a real app, this should be a batched write or transaction
-                await userRef.set(newUserProfile);
-                await usernameRef.set({ userId: user.uid });
+                // Use a batched write for an atomic operation to prevent permission errors
+                const batch = db.batch();
+                batch.set(userRef, newUserProfile);
+                batch.set(usernameRef, { userId: user.uid });
+                await batch.commit();
+
                 return true;
             }
             return false;
