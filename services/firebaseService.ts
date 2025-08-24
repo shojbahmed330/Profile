@@ -1,4 +1,3 @@
-
 // @ts-nocheck
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -110,7 +109,7 @@ const matchesTargeting = (campaign: Campaign, user: User): boolean => {
 export const firebaseService = {
     // --- Authentication ---
     onAuthStateChanged: (callback: (user: User | null) => void) => {
-        const getUserProfileWithRetry = async (uid: string, retries = 3, delay = 700): Promise<User | null> => {
+        const getUserProfileWithRetry = async (uid: string, retries = 5, delay = 800): Promise<User | null> => {
             for (let i = 0; i < retries; i++) {
                 try {
                     const profile = await firebaseService.getUserProfileById(uid);
@@ -130,7 +129,7 @@ export const firebaseService = {
             if (firebaseUser) {
                 // Check if the user was just created by comparing creation and last sign-in times
                 const { creationTime, lastSignInTime } = firebaseUser.metadata;
-                const isNewUser = creationTime === lastSignInTime;
+                const isNewUser = !creationTime || !lastSignInTime || (new Date(creationTime).getTime() === new Date(lastSignInTime).getTime());
     
                 let userProfile: User | null;
     
@@ -1210,10 +1209,21 @@ export const firebaseService = {
     async updateUserLastActive(userId: string): Promise<void> {
         const userRef = db.collection('users').doc(userId);
         try {
-            await userRef.set({ lastActiveTimestamp: serverTimestamp() }, { merge: true });
+            // Use a transaction to safely update only if the document exists.
+            // This prevents the race condition where set({merge:true}) tries to create a doc
+            // with incomplete data, which fails security rules.
+            await db.runTransaction(async (transaction) => {
+                const userDoc = await transaction.get(userRef);
+                if (userDoc.exists) {
+                    transaction.update(userRef, { lastActiveTimestamp: serverTimestamp() });
+                } else {
+                    // This can happen in a race condition right after sign-up.
+                    // It's safe to just skip the update. The next interval will catch it.
+                    console.warn(`updateUserLastActive: User doc ${userId} not found, skipping update. Will retry on next interval.`);
+                }
+            });
         } catch (error) {
-            // This can fail if the user is offline, which is acceptable.
-            // console.error("Failed to update last active timestamp.", error);
+            console.error("updateUserLastActive transaction failed:", error);
         }
     },
 
