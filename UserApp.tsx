@@ -199,24 +199,20 @@ const UserApp: React.FC = () => {
           unsubscribeNotifications();
           if (activityInterval) clearInterval(activityInterval);
 
+          setUser(userProfile);
+
           if (userProfile) {
-              setUser(userProfile);
+              setIsLoadingFeed(true);
+              setIsLoadingReels(true);
+              unsubscribePosts = firebaseService.listenToFeedPosts(userProfile.id, (feedPosts) => { setPosts(feedPosts); setIsLoadingFeed(false); });
+              unsubscribeReelsPosts = firebaseService.listenToReelsPosts((newReelsPosts) => { setReelsPosts(newReelsPosts); setIsLoadingReels(false); });
+              unsubscribeFriends = firebaseService.listenToFriends(userProfile.id, (friendsList) => { setFriends(friendsList); });
+              unsubscribeNotifications = firebaseService.listenToNotifications(userProfile.id, (newNotifications) => { setNotifications(newNotifications); });
               
-              // Only set up listeners and activity updates for real users, not offline fallbacks
-              if (!userProfile.isOffline) {
-                  setIsLoadingFeed(true);
-                  setIsLoadingReels(true);
-                  unsubscribePosts = firebaseService.listenToFeedPosts(userProfile.id, (feedPosts) => { setPosts(feedPosts); setIsLoadingFeed(false); });
-                  unsubscribeReelsPosts = firebaseService.listenToReelsPosts((newReelsPosts) => { setReelsPosts(newReelsPosts); setIsLoadingReels(false); });
-                  unsubscribeFriends = firebaseService.listenToFriends(userProfile.id, (friendsList) => { setFriends(friendsList); });
-                  unsubscribeNotifications = firebaseService.listenToNotifications(userProfile.id, (newNotifications) => { setNotifications(newNotifications); });
-                  
-                  firebaseService.updateUserLastActive(userProfile.id);
-                  activityInterval = window.setInterval(() => firebaseService.updateUserLastActive(userProfile.id), 60 * 1000);
-              }
+              firebaseService.updateUserLastActive(userProfile.id);
+              activityInterval = window.setInterval(() => firebaseService.updateUserLastActive(userProfile.id), 60 * 1000);
           } else {
               // User logged out, clear all data and return to auth screen
-              setUser(null);
               setPosts([]);
               setReelsPosts([]);
               setFriends([]);

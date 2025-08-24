@@ -110,41 +110,45 @@ const matchesTargeting = (campaign: Campaign, user: User): boolean => {
 export const firebaseService = {
     // --- Authentication ---
     onAuthStateChanged: (callback: (user: User | null) => void) => {
+        const getUserProfileWithRetry = async (uid: string, retries = 3, delay = 700): Promise<User | null> => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const profile = await firebaseService.getUserProfileById(uid);
+                    if (profile) {
+                        return profile;
+                    }
+                    console.warn(`Sign-up race condition detected. Retrying profile fetch (${i + 1}/${retries})...`);
+                    await new Promise(res => setTimeout(res, delay * (i + 1))); // increase delay each time
+                } catch (error) {
+                    console.error(`Error during profile fetch retry:`, error);
+                }
+            }
+            return null;
+        };
+    
         return auth.onAuthStateChanged(async (firebaseUser: FirebaseUser | null) => {
             if (firebaseUser) {
-                try {
-                    const userProfile = await firebaseService.getUserProfileById(firebaseUser.uid);
-                    if (userProfile && !userProfile.isDeactivated && !userProfile.isBanned) { // Check for deactivation and ban
-                        callback(userProfile);
-                    } else {
-                        // If user is deactivated/banned or profile doesn't exist, sign them out.
-                        if(userProfile?.isDeactivated) {
-                            console.log(`User ${firebaseUser.uid} is deactivated. Signing out.`);
-                        }
-                        if(userProfile?.isBanned) {
-                            console.log(`User ${firebaseUser.uid} is banned. Signing out.`);
-                        }
-                        await auth.signOut();
-                        callback(null);
-                    }
-                } catch (error) {
-                    console.warn("Could not reach Firestore. Creating a temporary user profile for offline use.", error);
-                    const fallbackUser: User = {
-                        id: firebaseUser.uid,
-                        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Offline User',
-                        name_lowercase: (firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Offline User').toLowerCase(),
-                        username: firebaseUser.email?.split('@')[0] || 'offlineuser',
-                        email: firebaseUser.email!,
-                        avatarUrl: firebaseUser.photoURL || DEFAULT_AVATARS[0],
-                        bio: 'Working in offline mode.',
-                        coverPhotoUrl: DEFAULT_COVER_PHOTOS[0],
-                        privacySettings: { postVisibility: 'public', friendRequestPrivacy: 'everyone' },
-                        blockedUserIds: [],
-                        voiceCoins: 0,
-                        createdAt: new Date().toISOString(),
-                        isOffline: true, // Flag to indicate this is not a real DB user
-                    };
-                    callback(fallbackUser);
+                // Check if the user was just created by comparing creation and last sign-in times
+                const { creationTime, lastSignInTime } = firebaseUser.metadata;
+                const isNewUser = creationTime === lastSignInTime;
+    
+                let userProfile: User | null;
+    
+                if (isNewUser) {
+                    // If it's a new user, retry fetching to account for the database write latency.
+                    userProfile = await getUserProfileWithRetry(firebaseUser.uid);
+                } else {
+                    // For existing users, a single fetch is usually fine.
+                    userProfile = await firebaseService.getUserProfileById(firebaseUser.uid);
+                }
+                
+                if (userProfile && !userProfile.isDeactivated && !userProfile.isBanned) {
+                    callback(userProfile);
+                } else {
+                    // If profile is still not found after retries, or user is banned/deactivated, sign them out.
+                    console.error(`User profile not found for uid: ${firebaseUser.uid} after retries, or user is banned/deactivated. Signing out.`);
+                    await auth.signOut();
+                    callback(null);
                 }
             } else {
                 callback(null);
@@ -1208,7 +1212,8 @@ export const firebaseService = {
         try {
             await userRef.set({ lastActiveTimestamp: serverTimestamp() }, { merge: true });
         } catch (error) {
-            console.error("Failed to update last active timestamp. This may be a Firestore security rule issue.", error);
+            // This can fail if the user is offline, which is acceptable.
+            // console.error("Failed to update last active timestamp.", error);
         }
     },
 
