@@ -1,4 +1,3 @@
-
 // @ts-nocheck
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -182,6 +181,7 @@ export const firebaseService = {
                     pendingFriendRequests: [],
                     sentFriendRequests: [],
                     createdAt: serverTimestamp(),
+                    lastActiveTimestamp: serverTimestamp(), // ATOMIC FIX: Set initial timestamp on creation
                 };
                 
                 // Use a batched write for an atomic operation to prevent permission errors
