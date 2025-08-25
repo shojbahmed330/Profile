@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   name: string; // Full Name
@@ -150,6 +151,12 @@ export interface Comment {
     duration?: number;
     text?: string;
     imageUrl?: string;
+    reactions?: { [emoji: string]: string[] }; // Key: emoji, Value: array of user IDs
+    replyTo?: { // Information about the comment this is a reply to
+        commentId: string;
+        authorName: string;
+        contentSnippet: string;
+    };
 }
 
 export interface ReplyInfo {

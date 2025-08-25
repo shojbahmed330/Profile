@@ -16,12 +16,13 @@ interface CreateCommentScreenProps {
   lastCommand: string | null;
   onCommandProcessed: () => void;
   onGoBack: () => void;
+  replyTo?: Comment['replyTo'];
 }
 
 type CommentMode = 'text' | 'image' | 'audio';
 const EMOJIS = ['😂', '❤️', '👍', '😢', '😡', '🔥', '😊', '😮'];
 
-const CreateCommentScreen: React.FC<CreateCommentScreenProps> = ({ user, postId, onCommentPosted, onSetTtsMessage, lastCommand, onCommandProcessed, onGoBack }) => {
+const CreateCommentScreen: React.FC<CreateCommentScreenProps> = ({ user, postId, onCommentPosted, onSetTtsMessage, lastCommand, onCommandProcessed, onGoBack, replyTo }) => {
   const [mode, setMode] = useState<CommentMode>('text');
   
   // Audio state
@@ -118,15 +119,15 @@ const CreateCommentScreen: React.FC<CreateCommentScreenProps> = ({ user, postId,
     try {
         if (mode === 'text' && text.trim()) {
             onSetTtsMessage('Posting text comment...');
-            newComment = await firebaseService.createComment(user, postId, { text });
+            newComment = await firebaseService.createComment(user, postId, { text, replyTo });
         } else if (mode === 'image' && imageFile) {
             onSetTtsMessage('Uploading image comment...');
-            newComment = await firebaseService.createComment(user, postId, { imageFile });
+            newComment = await firebaseService.createComment(user, postId, { imageFile, replyTo });
         } else if (mode === 'audio' && duration > 0 && audioUrl) {
             onSetTtsMessage('Posting voice comment...');
             setRecordingState(RecordingState.UPLOADING);
             const audioBlob = await fetch(audioUrl).then(r => r.blob());
-            newComment = await firebaseService.createComment(user, postId, { duration, audioBlob });
+            newComment = await firebaseService.createComment(user, postId, { duration, audioBlob, replyTo });
         } else {
              onSetTtsMessage('Please add content to your comment.');
              setIsPosting(false);
@@ -140,7 +141,7 @@ const CreateCommentScreen: React.FC<CreateCommentScreenProps> = ({ user, postId,
         onSetTtsMessage("Sorry, there was an error posting your comment.");
         setIsPosting(false);
     }
-  }, [user, postId, onCommentPosted, onSetTtsMessage, mode, text, imageFile, duration, audioUrl]);
+  }, [user, postId, onCommentPosted, onSetTtsMessage, mode, text, imageFile, duration, audioUrl, replyTo]);
 
   const handleCommand = useCallback(async (command: string) => {
     try {
@@ -274,6 +275,13 @@ const CreateCommentScreen: React.FC<CreateCommentScreenProps> = ({ user, postId,
   return (
     <div className="flex flex-col items-center justify-center h-full text-center text-slate-100 p-4 sm:p-8">
       <div className="w-full max-w-lg">
+        {replyTo && (
+            <div className="bg-slate-700/50 p-2 rounded-t-lg text-sm text-left">
+                <p className="text-slate-400">
+                    Replying to <span className="font-semibold text-slate-200">{replyTo.authorName}</span>: <em className="text-slate-300">"{replyTo.contentSnippet}"</em>
+                </p>
+            </div>
+        )}
         <div className="flex">
             <TabButton label="Text" iconName="edit" targetMode="text" />
             <TabButton label="Image" iconName="photo" targetMode="image" />

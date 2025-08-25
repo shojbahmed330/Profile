@@ -4,6 +4,7 @@ import type { Post, User, Comment, ScrollState } from '../types';
 import { PostCard } from './PostCard';
 import CommentCard from './CommentCard';
 import { geminiService } from '../services/geminiService';
+import { firebaseService } from '../services/firebaseService';
 import Icon from './Icon';
 import { getTtsPrompt } from '../constants';
 import { useSettings } from '../contexts/SettingsContext';
@@ -14,7 +15,7 @@ interface PostDetailScreenProps {
   currentUser: User;
   onSetTtsMessage: (message: string) => void;
   lastCommand: string | null;
-  onStartComment: (postId: string) => void;
+  onStartComment: (postId: string, replyTo?: Comment) => void;
   onReactToPost: (postId: string, emoji: string) => void;
   onOpenProfile: (userName: string) => void;
   onSharePost: (post: Post) => void;
@@ -33,10 +34,13 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ postId, newlyAddedC
 
 
   const fetchPostDetails = useCallback(async () => {
-      return await geminiService.getPostById(postId);
+      const fetchedPost = await geminiService.getPostById(postId);
+       if (fetchedPost) {
+           setPost(fetchedPost);
+       }
+      return fetchedPost;
   }, [postId]);
 
-  // Effect for initial fetching and handling newly added comments
   useEffect(() => {
     let isMounted = true;
     
@@ -45,7 +49,6 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ postId, newlyAddedC
       const fetchedPost = await fetchPostDetails();
       if (!isMounted || !fetchedPost) {
           setIsLoading(false);
-          // Handle post not found case
           return;
       }
 
@@ -66,28 +69,8 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ postId, newlyAddedC
     
     initialFetch();
 
-    return () => {
-        isMounted = false;
-    }
+    return () => { isMounted = false; }
   }, [postId, newlyAddedCommentId, fetchPostDetails, onSetTtsMessage, language]);
-
-  // Effect for polling for new comments
-  useEffect(() => {
-    const commentInterval = setInterval(async () => {
-        const freshPost = await geminiService.getPostById(postId);
-        setPost(currentPost => {
-            if (freshPost && currentPost && freshPost.commentCount > currentPost.commentCount) {
-                return freshPost;
-            }
-            return currentPost;
-        });
-    }, 5000);
-
-    return () => {
-        clearInterval(commentInterval);
-    }
-  }, [postId]);
-
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -114,13 +97,20 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ postId, newlyAddedC
   
   const handlePlayComment = useCallback((comment: Comment) => {
     if (comment.type !== 'audio') return;
+    setPlayingCommentId(prevId => prevId === comment.id ? null : comment.id);
+  }, []);
 
-    if (playingCommentId === comment.id) {
-        setPlayingCommentId(null);
-    } else {
-        setPlayingCommentId(comment.id);
+  const handleReplyToComment = (comment: Comment) => {
+    onStartComment(postId, comment);
+  };
+  
+  const handleReactToComment = async (commentId: string, emoji: string) => {
+    if (!post) return;
+    const success = await firebaseService.reactToComment(post.id, commentId, currentUser.id, emoji);
+    if (success) {
+      await fetchPostDetails();
     }
-  }, [playingCommentId]);
+  };
   
   const handleMarkBestAnswer = async (commentId: string) => {
     if (!post) return;
@@ -201,7 +191,7 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ postId, newlyAddedC
           onReact={onReactToPost}
           onViewPost={() => {}} // Already on the view
           onAuthorClick={onOpenProfile}
-          onStartComment={onStartComment}
+          onStartComment={() => onStartComment(post.id)}
           onSharePost={onSharePost}
         />
 
@@ -218,13 +208,16 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ postId, newlyAddedC
                     const isNew = comment.id === newlyAddedCommentId;
 
                     return (
-                        <div key={comment.id} ref={isNew ? newCommentRef : null} className={`p-0.5 rounded-lg transition-all duration-500 ${isBestAnswer ? 'bg-gradient-to-br from-emerald-500 to-green-500' : ''} ${isNew ? 'ring-2 ring-rose-500' : ''}`}>
+                        <div key={comment.id} ref={isNew ? newCommentRef : null} className={`p-0.5 rounded-lg transition-all duration-500 relative ${isBestAnswer ? 'bg-gradient-to-br from-emerald-500 to-green-500' : ''} ${isNew ? 'ring-2 ring-rose-500' : ''}`}>
                              <div className={`${isBestAnswer ? 'bg-slate-800 rounded-md' : ''}`}>
                                 <CommentCard 
                                     comment={comment}
+                                    currentUser={currentUser}
                                     isPlaying={playingCommentId === comment.id}
                                     onPlayPause={() => handlePlayComment(comment)}
                                     onAuthorClick={onOpenProfile}
+                                    onReply={handleReplyToComment}
+                                    onReact={handleReactToComment}
                                 />
                                 {canMarkBest && !isBestAnswer && (
                                     <button onClick={() => handleMarkBestAnswer(comment.id)} className="mt-2 ml-14 text-xs font-semibold text-emerald-400 hover:underline">

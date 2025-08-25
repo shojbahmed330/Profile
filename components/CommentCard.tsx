@@ -1,23 +1,39 @@
-
-import React, { useRef, useEffect } from 'react';
-import type { Comment } from '../types';
+import React, { useRef, useEffect, useMemo } from 'react';
+import type { Comment, User } from '../types';
 import Icon from './Icon';
 import Waveform from './Waveform';
 import TaggedContent from './TaggedContent';
 
+const AVAILABLE_REACTIONS = ['❤️', '😂', '👍', '😢', '🔥', '😮'];
+
 interface CommentCardProps {
   comment: Comment;
+  currentUser: User;
   isPlaying: boolean;
   onPlayPause: () => void;
   onAuthorClick: (username: string) => void;
+  onReply: (comment: Comment) => void;
+  onReact: (commentId: string, emoji: string) => void;
 }
 
-const CommentCard: React.FC<CommentCardProps> = ({ comment, isPlaying, onPlayPause, onAuthorClick }) => {
+const TimeAgo: React.FC<{ date: string }> = ({ date }) => {
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+    if (seconds < 60) return <>Just now</>;
+    let interval = seconds / 31536000;
+    if (interval > 1) return <>{Math.floor(interval)}y</>;
+    interval = seconds / 2592000;
+    if (interval > 1) return <>{Math.floor(interval)}mo</>;
+    interval = seconds / 86400;
+    if (interval > 1) return <>{Math.floor(interval)}d</>;
+    interval = seconds / 3600;
+    if (interval > 1) return <>{Math.floor(interval)}h</>;
+    interval = seconds / 60;
+    if (interval > 1) return <>{Math.floor(interval)}m</>;
+    return <>{Math.floor(seconds)}s</>;
+};
+
+const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUser, isPlaying, onPlayPause, onAuthorClick, onReply, onReact }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const timeAgo = new Date(comment.createdAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  });
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -34,7 +50,6 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, isPlaying, onPlayPau
     const audioElement = audioRef.current;
     if (audioElement) {
         const handleEnded = () => {
-            // Ensure onPlayPause is only called when it was actually playing
             if (!audioElement.paused) {
                 onPlayPause();
             }
@@ -45,6 +60,20 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, isPlaying, onPlayPau
         }
     }
   }, [onPlayPause]);
+
+  const myReaction = useMemo(() => {
+    if (!comment.reactions) return null;
+    for (const emoji in comment.reactions) {
+        if (comment.reactions[emoji].includes(currentUser.id)) {
+            return emoji;
+        }
+    }
+    return null;
+  }, [currentUser.id, comment.reactions]);
+  
+  const reactionEntries = useMemo(() => 
+    Object.entries(comment.reactions || {}).filter(([, userIds]) => userIds && userIds.length > 0), 
+  [comment.reactions]);
 
 
   const renderContent = () => {
@@ -82,9 +111,30 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, isPlaying, onPlayPau
         <div className="flex-grow">
             <div className="flex items-baseline gap-2">
                 <button onClick={() => onAuthorClick(comment.author.username)} className="font-bold text-slate-200 hover:text-sky-300 transition-colors">{comment.author.name}</button>
-                <span className="text-xs text-slate-400">{timeAgo}</span>
+                <span className="text-xs text-slate-400"><TimeAgo date={comment.createdAt} /></span>
             </div>
+            {comment.replyTo && (
+                <div className="text-xs text-slate-400 border-l-2 border-slate-500 pl-2 mt-1">
+                    Replying to <strong>{comment.replyTo.authorName}</strong>: <em>"{comment.replyTo.contentSnippet}"</em>
+                </div>
+            )}
             {renderContent()}
+            <div className="mt-2 flex items-center gap-4 text-xs font-semibold text-slate-400">
+                <button onClick={() => onReact(comment.id, myReaction || '👍')} className={`hover:text-white ${myReaction ? 'text-sky-400' : ''}`}>
+                    {myReaction ? 'Reacted' : 'React'}
+                </button>
+                <button onClick={() => onReply(comment)} className="hover:text-white">Reply</button>
+            </div>
+             {reactionEntries.length > 0 && (
+                <div className="absolute -bottom-3 right-0 flex gap-1">
+                    {reactionEntries.map(([emoji, userIds]) => (
+                        <button key={emoji} onClick={() => onReact(comment.id, emoji)} className={`px-2 py-0.5 text-xs rounded-full flex items-center gap-1 transition-colors ${userIds.includes(currentUser.id) ? 'bg-sky-500/80 text-white' : 'bg-slate-600/80 text-slate-200 hover:bg-slate-500/80'}`}>
+                            <span>{emoji}</span>
+                            <span className="font-semibold">{userIds.length}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     </div>
   );

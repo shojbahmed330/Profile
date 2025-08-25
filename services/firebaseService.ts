@@ -63,12 +63,21 @@ const docToUser = (doc: firebase.firestore.DocumentSnapshot): User => {
 
 const docToPost = (doc: firebase.firestore.DocumentSnapshot): Post => {
     const data = doc.data() || {};
+    // Ensure comments are processed correctly
+    const comments = (data.comments || []).map((comment: any) => {
+        const newComment = { ...comment };
+        if (comment.createdAt && comment.createdAt instanceof firebase.firestore.Timestamp) {
+            newComment.createdAt = comment.createdAt.toDate().toISOString();
+        }
+        return newComment;
+    });
+
     return {
         ...data,
         id: doc.id,
         createdAt: data.createdAt instanceof firebase.firestore.Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
         reactions: data.reactions || {},
-        comments: data.comments || [],
+        comments: comments, // use the processed comments
         commentCount: data.commentCount || 0,
     } as Post;
 }
@@ -462,7 +471,7 @@ export const firebaseService = {
         }
     },
     
-    async createComment(user: User, postId: string, data: { text?: string; imageFile?: File; audioBlob?: Blob; duration?: number }): Promise<Comment | null> {
+    async createComment(user: User, postId: string, data: { text?: string; imageFile?: File; audioBlob?: Blob; duration?: number; replyTo?: Comment['replyTo'] }): Promise<Comment | null> {
         if (user.commentingSuspendedUntil && new Date(user.commentingSuspendedUntil) > new Date()) {
             console.warn(`User ${user.id} is suspended from commenting.`);
             return null;
@@ -477,7 +486,12 @@ export const firebaseService = {
                 id: user.id, name: user.name, username: user.username, avatarUrl: user.avatarUrl,
             },
             createdAt: new Date().toISOString(),
+            reactions: {},
         };
+        
+        if (data.replyTo) {
+            newComment.replyTo = data.replyTo;
+        }
     
         if (data.audioBlob && data.duration) {
             newComment.type = 'audio';
@@ -505,6 +519,52 @@ export const firebaseService = {
         });
         
         return newComment as Comment;
+    },
+
+    async reactToComment(postId: string, commentId: string, userId: string, emoji: string): Promise<boolean> {
+        const postRef = db.collection('posts').doc(postId);
+        try {
+            await db.runTransaction(async (transaction) => {
+                const postDoc = await transaction.get(postRef);
+                if (!postDoc.exists) throw "Post not found";
+
+                const postData = postDoc.data() as Post;
+                const comments = postData.comments || [];
+                const commentIndex = comments.findIndex(c => c.id === commentId);
+
+                if (commentIndex === -1) throw "Comment not found";
+
+                const comment = comments[commentIndex];
+                const reactions = comment.reactions || {};
+                
+                let userPreviousReaction: string | null = null;
+                Object.keys(reactions).forEach(key => {
+                    const userIndex = reactions[key].indexOf(userId);
+                    if (userIndex > -1) {
+                        userPreviousReaction = key;
+                        reactions[key].splice(userIndex, 1);
+                    }
+                });
+
+                if (userPreviousReaction !== emoji) {
+                    if (!reactions[emoji]) reactions[emoji] = [];
+                    reactions[emoji].push(userId);
+                }
+
+                Object.keys(reactions).forEach(key => {
+                    if (reactions[key].length === 0) {
+                        delete reactions[key];
+                    }
+                });
+
+                comments[commentIndex].reactions = reactions;
+                transaction.update(postRef, { comments });
+            });
+            return true;
+        } catch (error) {
+            console.error("Failed to react to comment:", error);
+            return false;
+        }
     },
 
     async voteOnPoll(userId: string, postId: string, optionIndex: number): Promise<Post | null> {
