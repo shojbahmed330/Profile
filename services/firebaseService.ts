@@ -366,9 +366,13 @@ export const firebaseService = {
     },
 
     listenToReelsPosts(callback: (posts: Post[]) => void) {
+        // Corrected query to fetch only public reels to align with security rules.
+        // This prevents "Missing or insufficient permissions" errors.
+        // Note: This complex query will also require a composite index in Firestore.
+        // The console error will provide a direct link to create it.
         const q = db.collection('posts')
             .where('videoUrl', '!=', null)
-            .orderBy('videoUrl')
+            .where('author.privacySettings.postVisibility', '==', 'public')
             .orderBy('createdAt', 'desc')
             .limit(50);
         return q.onSnapshot((snapshot) => {
