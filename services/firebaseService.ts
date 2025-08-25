@@ -334,9 +334,19 @@ export const firebaseService = {
 
     // --- Posts ---
     listenToFeedPosts(currentUserId: string, callback: (posts: Post[]) => void) {
-        const q = db.collection('posts').orderBy('createdAt', 'desc').limit(50);
+        // Corrected query to fetch only public posts to align with security rules.
+        // This prevents "Missing or insufficient permissions" errors on feed load.
+        // A more advanced feed would require multiple queries (for friends' posts, etc.)
+        // or a server-side fan-out approach.
+        const q = db.collection('posts')
+            .where('author.privacySettings.postVisibility', '==', 'public')
+            .orderBy('createdAt', 'desc')
+            .limit(50);
+
         return q.onSnapshot((snapshot) => {
             const feedPosts = snapshot.docs.map(docToPost);
+            // The client-side filter is still useful to potentially exclude the user's own public posts if desired,
+            // though the query itself is now secure.
             const filtered = feedPosts.filter(p => p.author?.id === currentUserId || p.author?.privacySettings?.postVisibility === 'public');
             callback(filtered);
         });
