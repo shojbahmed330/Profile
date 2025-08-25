@@ -1,4 +1,3 @@
-
 // @ts-nocheck
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -373,6 +372,7 @@ export const firebaseService = {
         const q = db.collection('posts')
             .where('videoUrl', '!=', null)
             .where('author.privacySettings.postVisibility', '==', 'public')
+            .orderBy('videoUrl', 'asc')
             .orderBy('createdAt', 'desc')
             .limit(50);
         return q.onSnapshot((snapshot) => {
