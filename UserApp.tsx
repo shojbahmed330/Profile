@@ -136,7 +136,7 @@ const MobileMenuScreen: React.FC<{
 };
 
 
-const UserApp: React.FC = () => {
+export const UserApp: React.FC = () => {
   const [viewStack, setViewStack] = useState<ViewState[]>([{ view: AppView.AUTH }]);
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -1039,5 +1039,3 @@ const UserApp: React.FC = () => {
   );
 };
 
-
-export default UserApp;
