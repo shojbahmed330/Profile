@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Post, FriendshipStatus, ScrollState, AppView } from '../types';
 import { PostCard } from './PostCard';
@@ -6,7 +5,7 @@ import Icon from './Icon';
 import { geminiService } from '../services/geminiService';
 import { firebaseService } from '../services/firebaseService';
 import { getTtsPrompt } from '../constants';
-import ImageCropper from './ImageCropper';
+import ImageCropper from './ImageCropper'; // Import the new component
 import { useSettings } from '../contexts/SettingsContext';
 import { t } from '../i18n';
 
@@ -34,8 +33,8 @@ interface ProfileScreenProps {
 }
 
 const AboutItem: React.FC<{iconName: React.ComponentProps<typeof Icon>['name'], children: React.ReactNode}> = ({iconName, children}) => (
-    <div className="flex items-start gap-3 text-slate-300">
-        <Icon name={iconName} className="w-5 h-5 text-slate-400 mt-1 flex-shrink-0"/>
+    <div className="flex items-start gap-3 text-gray-600">
+        <Icon name={iconName} className="w-5 h-5 text-gray-500 mt-1 flex-shrink-0"/>
         <p>{children}</p>
     </div>
 );
@@ -65,8 +64,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
       imageUrl: string;
       isUploading: boolean;
   }>({ isOpen: false, type: null, imageUrl: '', isUploading: false });
-
-  const [dragState, setDragState] = useState({ isOverAvatar: false, isOverCover: false });
 
   const fetchProfile = useCallback(async () => {
     setIsLoading(true);
@@ -173,30 +170,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
           URL.revokeObjectURL(cropperState.imageUrl);
       }
       setCropperState({ isOpen: false, type: null, imageUrl: '', isUploading: false });
-  };
-  
-  // --- Drag and Drop Handlers ---
-  const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
-      e.preventDefault();
-  };
-
-  const handleDragEnter = (e: React.DragEvent<HTMLElement>, type: 'avatar' | 'cover') => {
-      e.preventDefault();
-      setDragState(prev => ({ ...prev, [type === 'avatar' ? 'isOverAvatar' : 'isOverCover']: true }));
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLElement>, type: 'avatar' | 'cover') => {
-      e.preventDefault();
-      setDragState(prev => ({ ...prev, [type === 'avatar' ? 'isOverAvatar' : 'isOverCover']: false }));
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLElement>, type: 'avatar' | 'cover') => {
-      e.preventDefault();
-      setDragState({ isOverAvatar: false, isOverCover: false });
-      const file = e.dataTransfer.files?.[0];
-      if (file) {
-          openCropperModal(file, type);
-      }
   };
 
   const handleCommand = useCallback(async (command: string) => {
@@ -351,9 +324,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     return (
         <>
             {profileUser.friendshipStatus === FriendshipStatus.FRIENDS ? (
-                <button disabled className={`${baseClasses} bg-slate-700 text-slate-300`}>{t(language, 'profile.friends')}</button>
+                <button disabled className={`${baseClasses} bg-slate-200 text-gray-500`}>{t(language, 'profile.friends')}</button>
             ) : profileUser.friendshipStatus === FriendshipStatus.REQUEST_SENT ? (
-                <button disabled className={`${baseClasses} bg-slate-700 text-slate-300`}>{t(language, 'profile.requestSent')}</button>
+                <button disabled className={`${baseClasses} bg-slate-200 text-gray-500`}>{t(language, 'profile.requestSent')}</button>
             ) : (
                 <button 
                     onClick={() => handleCommand('add friend')} 
@@ -372,27 +345,21 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
   }
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-full"><p className="text-slate-300 text-xl">{t(language, 'common.loading')}</p></div>;
+    return <div className="flex items-center justify-center h-full"><p className="text-gray-600 text-xl">{t(language, 'common.loading')}</p></div>;
   }
 
   if (!profileUser) {
-    return <div className="flex items-center justify-center h-full"><p className="text-slate-300 text-xl">User not found.</p></div>;
+    return <div className="flex items-center justify-center h-full"><p className="text-gray-600 text-xl">User not found.</p></div>;
   }
 
   const isOwnProfile = profileUser.id === currentUser.id;
 
   return (
     <>
-        <div ref={scrollContainerRef} className="h-full w-full overflow-y-auto bg-slate-900">
+        <div ref={scrollContainerRef} className="h-full w-full overflow-y-auto bg-gray-100">
             <div className="max-w-4xl mx-auto">
-                <header 
-                    className="relative group/cover"
-                    onDrop={(e) => isOwnProfile && handleDrop(e, 'cover')}
-                    onDragOver={isOwnProfile ? handleDragOver : undefined}
-                    onDragEnter={(e) => isOwnProfile && handleDragEnter(e, 'cover')}
-                    onDragLeave={(e) => isOwnProfile && handleDragLeave(e, 'cover')}
-                >
-                    <div className="w-full h-48 sm:h-72 bg-slate-700">
+                <header className="relative group/cover">
+                    <div className="w-full h-48 sm:h-72 bg-gray-300">
                         <img src={profileUser.coverPhotoUrl} alt={`${profileUser.name}'s cover photo`} className="w-full h-full object-cover" />
                     </div>
                      {isOwnProfile && (
@@ -406,22 +373,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             </button>
                         </>
                     )}
-                    {dragState.isOverCover && (
-                        <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center border-4 border-dashed border-sky-400 rounded-lg pointer-events-none">
-                            <Icon name="edit" className="w-16 h-16 text-sky-400" />
-                            <p className="mt-2 text-xl font-bold text-white">{t(language, 'profile.dropToUpdateCover')}</p>
-                        </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-900 to-transparent">
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-100 to-transparent">
                         <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4">
-                            <div 
-                                className="relative group/avatar"
-                                onDrop={(e) => isOwnProfile && handleDrop(e, 'avatar')}
-                                onDragOver={isOwnProfile ? handleDragOver : undefined}
-                                onDragEnter={(e) => isOwnProfile && handleDragEnter(e, 'avatar')}
-                                onDragLeave={(e) => isOwnProfile && handleDragLeave(e, 'avatar')}
-                            >
-                               <img src={profileUser.avatarUrl} alt={profileUser.name} className="w-28 h-28 sm:w-40 sm:h-40 rounded-full border-4 border-slate-900 object-cover" />
+                            <div className="relative group/avatar">
+                               <img src={profileUser.avatarUrl} alt={profileUser.name} className="w-28 h-28 sm:w-40 sm:h-40 rounded-full border-4 border-gray-100 object-cover" />
                                {isOwnProfile && (
                                     <>
                                         <input type="file" accept="image/*" ref={avatarInputRef} onChange={(e) => handleFileSelect(e, 'avatar')} className="hidden" />
@@ -434,18 +389,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                         </button>
                                     </>
                                )}
-                               {dragState.isOverAvatar && (
-                                    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center border-4 border-dashed border-sky-400 rounded-full pointer-events-none">
-                                        <p className="text-sm font-bold text-white text-center">{t(language, 'profile.dropToUpdateAvatar')}</p>
-                                    </div>
-                                )}
                             </div>
                             <div className="flex-grow text-center sm:text-left mb-2">
-                                <h2 className="text-3xl font-bold text-slate-100">{profileUser.name}</h2>
+                                <h2 className="text-3xl font-bold text-gray-900">{profileUser.name}</h2>
                                 { (profileUser.bio || isOwnProfile) &&
-                                    <p className="text-slate-400 mt-1">
+                                    <p className="text-gray-600 mt-1">
                                         {profileUser.bio ? profileUser.bio : 
-                                            <button onClick={onEditProfile} className="text-sky-400 hover:underline">
+                                            <button onClick={onEditProfile} className="text-sky-600 hover:underline">
                                                 {t(language, 'profile.addBio')}
                                             </button>
                                         }
@@ -454,7 +404,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             </div>
                              <div className="flex justify-center sm:justify-end gap-3 mb-2">
                                 {isOwnProfile ? (
-                                    <button onClick={onEditProfile} className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-slate-600 text-white hover:bg-slate-500">
+                                    <button onClick={onEditProfile} className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-slate-200 text-gray-800 hover:bg-slate-300">
                                         <Icon name="edit" className="w-5 h-5"/>
                                         {t(language, 'profile.editProfile')}
                                     </button>
@@ -466,8 +416,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 
                 <div className="p-4 grid grid-cols-1 md:grid-cols-12 gap-6">
                     <aside className="md:col-span-5 space-y-6">
-                        <div className="bg-slate-800 p-4 rounded-lg">
-                            <h3 className="font-bold text-xl text-slate-100 mb-4">{t(language, 'profile.about')}</h3>
+                        <div className="bg-white p-4 rounded-lg shadow-md">
+                            <h3 className="font-bold text-xl text-gray-900 mb-4">{t(language, 'profile.about')}</h3>
                             <div className="space-y-3">
                                 {isOwnProfile && profileUser.voiceCoins !== undefined && (
                                     <AboutItem iconName="coin">
@@ -479,7 +429,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                     <AboutItem iconName="briefcase">
                                         {profileUser.work 
                                             ? <>{t(language, 'profile.worksAt')} <strong>{profileUser.work}</strong></>
-                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addWork')}</button>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-600 hover:underline">{t(language, 'profile.addWork')}</button>
                                         }
                                     </AboutItem>
                                 }
@@ -487,7 +437,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                     <AboutItem iconName="academic-cap">
                                         {profileUser.education 
                                             ? <>{t(language, 'profile.studiedAt')} <strong>{profileUser.education}</strong></>
-                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addEducation')}</button>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-600 hover:underline">{t(language, 'profile.addEducation')}</button>
                                         }
                                     </AboutItem>
                                 }
@@ -495,7 +445,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                     <AboutItem iconName="map-pin">
                                         {profileUser.currentCity 
                                             ? <>{t(language, 'profile.livesIn')} <strong>{profileUser.currentCity}</strong></>
-                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addCurrentCity')}</button>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-600 hover:underline">{t(language, 'profile.addCurrentCity')}</button>
                                         }
                                     </AboutItem>
                                 }
@@ -503,7 +453,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                     <AboutItem iconName="home">
                                         {profileUser.hometown 
                                             ? <>{t(language, 'profile.from')} <strong>{profileUser.hometown}</strong></>
-                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addHometown')}</button>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-600 hover:underline">{t(language, 'profile.addHometown')}</button>
                                         }
                                     </AboutItem>
                                 }
@@ -511,7 +461,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                     <AboutItem iconName="like">
                                         {profileUser.relationshipStatus && profileUser.relationshipStatus !== 'Prefer not to say'
                                             ? <strong>{profileUser.relationshipStatus}</strong>
-                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-400 hover:underline">{t(language, 'profile.addRelationship')}</button>
+                                            : isOwnProfile && <button onClick={onEditProfile} className="text-sky-600 hover:underline">{t(language, 'profile.addRelationship')}</button>
                                         }
                                     </AboutItem>
                                 }
@@ -542,7 +492,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 />
                             </div>
                         )) : (
-                          <div className="bg-slate-800 p-8 rounded-lg text-center text-slate-400">
+                          <div className="bg-white p-8 rounded-lg shadow-md text-center text-gray-500">
                               <p>{t(language, 'profile.noPosts', { name: profileUser.name })}</p>
                           </div>
                         )}

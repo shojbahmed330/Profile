@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppView, User, VoiceState, Post, Comment, ScrollState, Notification, Campaign, Group, Story } from './types';
 import AuthScreen from './components/AuthScreen';
@@ -227,7 +226,8 @@ export const UserApp: React.FC = () => {
 
   const renderCurrentView = () => {
     if (!user) {
-      return <AuthScreen onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} initialAuthError={globalAuthError} />;
+      // FIX: Pass ttsMessage prop to AuthScreen
+      return <AuthScreen ttsMessage={ttsMessage} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} initialAuthError={globalAuthError} />;
     }
     switch (currentView.view) {
         case AppView.FEED:
@@ -296,15 +296,15 @@ export const UserApp: React.FC = () => {
   }
 
   if (isAuthLoading) {
-    return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-white"><p>Loading session...</p></div>;
+    return <div className="h-screen w-screen bg-gray-100 flex items-center justify-center text-gray-800"><p>Loading session...</p></div>;
   }
 
   if (!user) {
-    return <AuthScreen onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} initialAuthError={globalAuthError} />;
+    return <AuthScreen ttsMessage={ttsMessage} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} initialAuthError={globalAuthError} />;
   }
 
   return (
-    <div className="h-screen w-screen bg-slate-900 flex font-sans overflow-hidden text-white">
+    <div className="h-screen w-screen bg-gray-100 flex font-sans overflow-hidden text-gray-900">
         {renderCurrentView()}
     </div>
   );
