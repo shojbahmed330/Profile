@@ -1,10 +1,10 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import type { Comment, User } from '../types';
 import Icon from './Icon';
 import Waveform from './Waveform';
 import TaggedContent from './TaggedContent';
 
-const AVAILABLE_REACTIONS = ['❤️', '😂', '👍', '😢', '🔥', '😮'];
+const AVAILABLE_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
 
 interface CommentCardProps {
   comment: Comment;
@@ -34,6 +34,9 @@ const TimeAgo: React.FC<{ date: string }> = ({ date }) => {
 
 const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUser, isPlaying, onPlayPause, onAuthorClick, onReply, onReact }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPickerOpen, setPickerOpen] = useState(false);
+  const pickerTimeout = useRef<number | null>(null);
+  const longPressTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -63,17 +66,59 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUser, isPlayi
 
   const myReaction = useMemo(() => {
     if (!comment.reactions) return null;
+    let reaction = null;
     for (const emoji in comment.reactions) {
         if (comment.reactions[emoji].includes(currentUser.id)) {
-            return emoji;
+            reaction = emoji;
+            break;
         }
     }
-    return null;
+    return reaction;
   }, [currentUser.id, comment.reactions]);
   
   const reactionEntries = useMemo(() => 
     Object.entries(comment.reactions || {}).filter(([, userIds]) => userIds && userIds.length > 0), 
   [comment.reactions]);
+
+  const handleReaction = (e: React.MouseEvent | React.TouchEvent, emoji: string) => {
+      e.stopPropagation();
+      onReact(comment.id, emoji);
+      setPickerOpen(false);
+  }
+
+  const handleDefaultReact = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    onReact(comment.id, myReaction || '👍');
+    setPickerOpen(false);
+  };
+  
+  const handleMouseEnter = () => {
+    if (pickerTimeout.current) clearTimeout(pickerTimeout.current);
+    setPickerOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    pickerTimeout.current = window.setTimeout(() => {
+        setPickerOpen(false);
+    }, 500);
+  };
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    longPressTimer.current = window.setTimeout(() => {
+        setPickerOpen(true);
+    }, 400);
+  };
+  
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+    }
+    if (!isPickerOpen) {
+        handleDefaultReact(e);
+    }
+  };
 
 
   const renderContent = () => {
@@ -104,7 +149,7 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUser, isPlayi
   };
   
   return (
-    <div className="bg-slate-700/50 rounded-lg p-3 flex gap-3 items-start">
+    <div className="bg-slate-700/50 rounded-lg p-3 flex gap-3 items-start relative">
         <button onClick={() => onAuthorClick(comment.author.username)} className="flex-shrink-0 group">
             <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-10 h-10 rounded-full transition-all group-hover:ring-2 group-hover:ring-sky-400" />
         </button>
@@ -120,15 +165,39 @@ const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUser, isPlayi
             )}
             {renderContent()}
             <div className="mt-2 flex items-center gap-4 text-xs font-semibold text-slate-400">
-                <button onClick={() => onReact(comment.id, myReaction || '👍')} className={`hover:text-white ${myReaction ? 'text-sky-400' : ''}`}>
-                    {myReaction ? 'Reacted' : 'React'}
-                </button>
+                 <div 
+                    onMouseEnter={handleMouseEnter} 
+                    onMouseLeave={handleMouseLeave}
+                    className="relative"
+                >
+                    {isPickerOpen && (
+                        <div 
+                            onMouseEnter={handleMouseEnter} 
+                            onMouseLeave={handleMouseLeave}
+                            className="absolute bottom-full mb-2 bg-slate-900/90 backdrop-blur-sm border border-lime-500/20 rounded-full p-1.5 flex items-center gap-1 shadow-lg animate-fade-in-fast"
+                        >
+                            {AVAILABLE_REACTIONS.map(emoji => (
+                                <button key={emoji} onClick={(e) => handleReaction(e, emoji)} className="text-2xl p-1 rounded-full hover:bg-slate-700/50 transition-transform hover:scale-125">
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <button 
+                        onClick={handleDefaultReact} 
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                        className={`hover:text-white ${myReaction ? 'text-sky-400' : ''}`}
+                    >
+                        {myReaction ? 'Reacted' : 'React'}
+                    </button>
+                </div>
                 <button onClick={() => onReply(comment)} className="hover:text-white">Reply</button>
             </div>
              {reactionEntries.length > 0 && (
-                <div className="absolute -bottom-3 right-0 flex gap-1">
+                <div className="absolute -bottom-3 right-0 flex gap-1 bg-slate-700/50 p-0.5 rounded-full border border-slate-600/50">
                     {reactionEntries.map(([emoji, userIds]) => (
-                        <button key={emoji} onClick={() => onReact(comment.id, emoji)} className={`px-2 py-0.5 text-xs rounded-full flex items-center gap-1 transition-colors ${userIds.includes(currentUser.id) ? 'bg-sky-500/80 text-white' : 'bg-slate-600/80 text-slate-200 hover:bg-slate-500/80'}`}>
+                        <button key={emoji} onClick={(e) => handleReaction(e, emoji)} className={`px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 transition-colors ${userIds.includes(currentUser.id) ? 'bg-sky-500/80 text-white' : 'bg-slate-600/80 text-slate-200 hover:bg-slate-500/80'}`}>
                             <span>{emoji}</span>
                             <span className="font-semibold">{userIds.length}</span>
                         </button>
