@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-// FIX: Changed import to named import as UserApp does not have a default export.
-import { UserApp } from './UserApp';
+import UserApp from './UserApp';
 import AdminPortal from './components/AdminPortal';
 import { SettingsProvider } from './contexts/SettingsContext';
 
