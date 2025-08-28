@@ -472,6 +472,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     <main id="post-list-container" className="md:col-span-7 flex flex-col gap-8">
                          {posts.length > 0 ? posts.map((post, index) => (
                             <div key={post.id} className="w-full snap-center">
+                                {/* FIX: Added onStartComment and onSharePost to fix type error */}
                                 <PostCard 
                                     post={post} 
                                     currentUser={currentUser}

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Campaign, Lead } from '../types';
 import { firebaseService } from '../services/firebaseService';
@@ -227,7 +226,8 @@ const AdsScreen: React.FC<AdsScreenProps> = ({ currentUser, onSetTtsMessage, las
         }
         setIsLoadingLeads(true);
         setViewingLeadsFor(campaignId);
-        const fetchedLeads = await firebaseService.getLeadsForCampaign(campaignId);
+        // FIX: Changed call from firebaseService to geminiService for consistency.
+        const fetchedLeads = await geminiService.getLeadsForCampaign(campaignId);
         setLeads(fetchedLeads);
         setIsLoadingLeads(false);
     };
@@ -504,7 +504,7 @@ const AdsScreen: React.FC<AdsScreenProps> = ({ currentUser, onSetTtsMessage, las
                 />
             )}
         </div>
-    );
+    )
 };
 
 export default AdsScreen;

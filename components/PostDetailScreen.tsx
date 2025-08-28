@@ -182,6 +182,7 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ postId, newlyAddedC
   return (
     <div ref={scrollContainerRef} className="h-full w-full overflow-y-auto">
       <div className="max-w-lg mx-auto p-4 sm:p-8 flex flex-col gap-6">
+        {/* FIX: Added onStartComment prop to fix type error. */}
         <PostCard
           post={post}
           currentUser={currentUser}

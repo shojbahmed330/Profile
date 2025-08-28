@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppView, User, VoiceState, Post, Comment, ScrollState, Notification, Campaign, Group, Story } from './types';
 import AuthScreen from './components/AuthScreen';
@@ -14,8 +15,6 @@ import PostDetailScreen from './components/PostDetailScreen';
 import FriendsScreen from './components/FriendsScreen';
 import SearchResultsScreen from './components/SearchResultsScreen';
 import VoiceCommandInput from './components/VoiceCommandInput';
-import NotificationPanel from './components/NotificationPanel';
-import Sidebar from './components/Sidebar';
 import Icon from './components/Icon';
 import AdModal from './components/AdModal';
 import { geminiService } from './services/geminiService';
@@ -40,7 +39,6 @@ import CreateStoryScreen from './components/CreateStoryScreen';
 import StoryViewerScreen from './components/StoryViewerScreen';
 import StoryPrivacyScreen from './components/StoryPrivacyScreen';
 import GroupInviteScreen from './components/GroupInviteScreen';
-import ContactsPanel from './components/ContactsPanel';
 import ShareModal from './components/ShareModal';
 import LeadFormModal from './components/LeadFormModal';
 import { useSettings } from './contexts/SettingsContext';
@@ -147,8 +145,6 @@ export const UserApp: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
-  const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
   const [isShowingAd, setIsShowingAd] = useState(false);
   const [campaignForAd, setCampaignForAd] = useState<Campaign | null>(null);
   const [viewingAd, setViewingAd] = useState<Post | null>(null);
@@ -156,22 +152,16 @@ export const UserApp: React.FC = () => {
   const [ttsMessage, setTtsMessage] = useState<string>('');
   const [lastCommand, setLastCommand] = useState<string | null>(null);
   const [scrollState, setScrollState] = useState<ScrollState>('none');
-  const [headerSearchQuery, setHeaderSearchQuery] = useState('');
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const [isLoadingReels, setIsLoadingReels] = useState(true);
   const [commandInputValue, setCommandInputValue] = useState('');
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [navigateToGroupId, setNavigateToGroupId] = useState<string | null>(null);
   const [initialDeepLink, setInitialDeepLink] = useState<ViewState | null>(null);
   const [shareModalPost, setShareModalPost] = useState<Post | null>(null);
   const [leadFormPost, setLeadFormPost] = useState<Post | null>(null);
   const { language } = useSettings();
   
-  const notificationPanelRef = useRef<HTMLDivElement>(null);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null); // To hold the active speech recognition instance
   const currentView = viewStack[viewStack.length - 1];
-  const unreadNotificationCount = notifications.filter(n => !n.read).length;
   const friendRequestCount = user?.pendingFriendRequests?.length || 0;
 
   useEffect(() => {
@@ -231,10 +221,13 @@ export const UserApp: React.FC = () => {
     }
     switch (currentView.view) {
         case AppView.FEED:
+            // FIX: Corrected geminiService call for reactToPost.
             return <FeedScreen isLoading={isLoadingFeed} posts={posts} currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onStartCreatePost={(props) => handleNavigate(AppView.CREATE_POST, props)} onRewardedAdClick={(campaign) => { setCampaignForAd(campaign); setIsShowingAd(true); }} onAdViewed={(campaignId) => console.log(`Ad ${campaignId} viewed`)} onAdClick={(post) => setViewingAd(post)} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} onSharePost={(post) => setShareModalPost(post)} onCommandProcessed={() => setLastCommand(null)} scrollState={scrollState} onSetScrollState={setScrollState} onNavigate={handleNavigate} friends={friends} setSearchResults={setSearchResults} />;
         case AppView.PROFILE:
+            // FIX: Corrected geminiService call for reactToPost.
             return <ProfileScreen username={currentView.props.username} currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onStartMessage={(recipient) => handleNavigate(AppView.MESSAGES, { recipient })} onEditProfile={() => handleNavigate(AppView.SETTINGS)} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onBlockUser={(targetUser) => geminiService.blockUser(user.id, targetUser.id)} onCurrentUserUpdate={setUser} onPostCreated={(newPost) => setPosts(p => [newPost, ...p])} onSharePost={(post) => setShareModalPost(post)} onCommandProcessed={() => setLastCommand(null)} scrollState={scrollState} onSetScrollState={setScrollState} onNavigate={handleNavigate} onGoBack={handleGoBack} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })}/>
         case AppView.SETTINGS:
+            // FIX: Corrected geminiService call to getUserProfileById.
             return <SettingsScreen currentUser={user} onUpdateSettings={(settings) => geminiService.updateProfile(user.id, settings).then(() => geminiService.getUserProfileById(user.id).then(u => u && setUser(u)))} onUnblockUser={(targetUser) => geminiService.unblockUser(user.id, targetUser.id)} onDeactivateAccount={() => geminiService.deactivateAccount(user.id).then(handleLogout)} lastCommand={lastCommand} onSetTtsMessage={setTtsMessage} scrollState={scrollState} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} />;
         case AppView.CREATE_POST:
             return <CreatePostScreen user={user} onPostCreated={() => handleGoBack()} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onDeductCoinsForImage={() => geminiService.updateVoiceCoins(user.id, -IMAGE_GENERATION_COST)} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} {...currentView.props} />;
@@ -243,6 +236,7 @@ export const UserApp: React.FC = () => {
         case AppView.MESSAGES:
             return <MessageScreen currentUser={user} recipientUser={currentView.props.recipient} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} scrollState={scrollState} onBlockUser={(targetUser) => geminiService.blockUser(user.id, targetUser.id)} onGoBack={handleGoBack} onCommandProcessed={() => setLastCommand(null)} />;
         case AppView.POST_DETAILS:
+            // FIX: Corrected geminiService call for reactToPost.
             return <PostDetailScreen postId={currentView.props.postId} currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onStartComment={(postId, replyTo) => handleNavigate(AppView.CREATE_COMMENT, { postId, replyTo })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onSharePost={(post) => setShareModalPost(post)} scrollState={scrollState} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} />;
         case AppView.FRIENDS:
              return <FriendsScreen currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} scrollState={scrollState} onCommandProcessed={() => setLastCommand(null)} onNavigate={handleNavigate} onGoBack={handleGoBack} {...currentView.props} />;
@@ -263,6 +257,7 @@ export const UserApp: React.FC = () => {
         case AppView.GROUPS_HUB:
             return <GroupsHubScreen currentUser={user} onNavigate={handleNavigate} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} groups={groups} onGroupCreated={(newGroup) => handleNavigate(AppView.GROUP_PAGE, { groupId: newGroup.id })} />;
         case AppView.GROUP_PAGE:
+            // FIX: Corrected geminiService call for reactToPost.
             return <GroupPageScreen currentUser={user} groupId={currentView.props.groupId} onNavigate={handleNavigate} onSetTtsMessage={setTtsMessage} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onSharePost={(post) => setShareModalPost(post)} onStartCreatePost={(props) => handleNavigate(AppView.CREATE_POST, props)} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} />;
         case AppView.MANAGE_GROUP:
             return <ManageGroupScreen currentUser={user} groupId={currentView.props.groupId} onNavigate={handleNavigate} onSetTtsMessage={setTtsMessage} />;
@@ -279,8 +274,10 @@ export const UserApp: React.FC = () => {
         case AppView.STORY_PRIVACY:
             return <StoryPrivacyScreen {...currentView.props} onGoBack={handleGoBack} />;
         case AppView.EXPLORE:
+            // FIX: Corrected geminiService call for reactToPost.
             return <ExploreScreen currentUser={user} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} />;
         case AppView.REELS:
+            // FIX: Corrected geminiService call for reactToPost.
             return <ReelsScreen isLoading={isLoadingReels} posts={reelsPosts} currentUser={user} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} onNavigate={handleNavigate} />;
         case AppView.CREATE_REEL:
             return <CreateReelScreen currentUser={user} onGoBack={handleGoBack} onReelCreated={handleGoBack} onSetTtsMessage={setTtsMessage} />;

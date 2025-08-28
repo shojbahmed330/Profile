@@ -399,6 +399,7 @@ export const geminiService = {
     // FIX: Added all missing passthrough functions to firebaseService
     // --- Passthrough functions to firebaseService ---
     getMusicLibrary: (): MusicTrack[] => MOCK_MUSIC_LIBRARY,
+    reactToPost: (postId: string, userId: string, emoji: string) => firebaseService.reactToPost(postId, userId, emoji),
     getPendingCampaigns: () => firebaseService.getPendingCampaigns(),
     getCampaignsForSponsor: (sponsorId: string) => firebaseService.getCampaignsForSponsor(sponsorId),
     submitCampaignForApproval: (campaignData, transactionId) => firebaseService.submitCampaignForApproval(campaignData, transactionId),
@@ -413,7 +414,6 @@ export const geminiService = {
     adminUpdateUserProfilePicture: (userId: string, base64: string) => firebaseService.adminUpdateUserProfilePicture(userId, base64),
     getConversations: (userId: string) => firebaseService.getConversations(userId),
     createComment: (user, postId, data) => firebaseService.createComment(user, postId, data),
-    likePost: (postId: string, userId: string) => firebaseService.likePost(postId, userId),
     getStories: (userId: string) => firebaseService.getStories(userId),
     getRandomActiveCampaign: () => firebaseService.getRandomActiveCampaign(),
     searchUsers: (query: string) => firebaseService.searchUsers(query),
@@ -435,6 +435,7 @@ export const geminiService = {
     getPostById: (postId: string) => firebaseService.getPostById(postId),
     markBestAnswer: (userId, postId, commentId) => firebaseService.markBestAnswer(userId, postId, commentId),
     getUserProfile: (name: string) => firebaseService.getUserProfile(name),
+    getUserProfileById: (uid: string) => firebaseService.getUserProfileById(uid),
     getPostsByUser: (userId: string) => firebaseService.getPostsByUser(userId),
     updateProfile: (userId, updates) => firebaseService.updateProfile(userId, updates),
     updateProfilePicture: (userId: string, base64Url: string, caption: string) => firebaseService.updateProfilePicture(userId, base64Url, caption),

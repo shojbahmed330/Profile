@@ -17,6 +17,9 @@ interface PostCardProps {
   onAuthorClick: (username: string) => void;
   onAdClick?: (post: Post) => void;
   onDeletePost?: (postId: string) => void;
+  // FIX: Add missing props to prevent type errors in parent components
+  onStartComment?: (postId: string) => void;
+  onSharePost?: (post: Post) => void;
   // For group functionality
   groupRole?: GroupRole;
   isGroupAdmin?: boolean;
@@ -36,7 +39,7 @@ const REACTION_COLORS: { [key: string]: string } = {
     '😡': 'text-orange-500',
 };
 
-export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive, isPlaying, onPlayPause, onReact, onViewPost, onAuthorClick, onAdClick, onDeletePost, groupRole, isGroupAdmin, isPinned, onPinPost, onUnpinPost, onVote }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive, isPlaying, onPlayPause, onReact, onViewPost, onAuthorClick, onAdClick, onDeletePost, groupRole, isGroupAdmin, isPinned, onPinPost, onUnpinPost, onVote, onStartComment, onSharePost }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isMenuOpen, setMenuOpen] = useState(false);
@@ -438,11 +441,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
                       <span className="font-semibold text-base">{myReaction ? myReaction === '👍' ? 'Like' : 'Reacted' : 'React'}</span>
                     </button>
                 </div>
-                <button onClick={handleView} className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                <button onClick={(e) => { e.stopPropagation(); onStartComment ? onStartComment(post.id) : onViewPost(post.id); }} className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">
                   <Icon name="comment" className="w-6 h-6" />
                   <span className="font-semibold text-base">Comment</span>
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                <button onClick={(e) => { e.stopPropagation(); onSharePost?.(post); }} className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">
                   <Icon name="share" className="w-6 h-6" />
                   <span className="font-semibold text-base">Share</span>
                 </button>

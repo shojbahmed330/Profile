@@ -73,6 +73,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
         onViewPost,
         onAuthorClick: onOpenProfile,
         onStartComment,
+        onSharePost: () => {}, // Dummy function for now, can be implemented later
         isActive: false,
         isPlaying: false,
         onPlayPause: () => {},
