@@ -55,11 +55,11 @@ const MenuItem: React.FC<{
     onClick: () => void;
     badge?: string | number;
 }> = ({ iconName, label, onClick, badge }) => (
-    <button onClick={onClick} className="w-full flex items-center gap-4 p-4 text-left text-lg text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-        <Icon name={iconName} className="w-7 h-7 text-gray-500" />
+    <button onClick={onClick} className="w-full flex items-center gap-4 p-4 text-left text-lg text-slate-200 hover:bg-slate-700/50 rounded-lg transition-colors">
+        <Icon name={iconName} className="w-7 h-7 text-slate-400" />
         <span className="flex-grow">{label}</span>
-        {badge !== undefined && Number(badge) > 0 && <span className="text-sm font-bold bg-red-500 text-white rounded-full px-2 py-0.5">{badge}</span>}
-        {badge !== undefined && Number(badge) === 0 && <span className="text-sm font-bold text-yellow-500">{badge}</span>}
+        {badge !== undefined && Number(badge) > 0 && <span className="text-sm font-bold bg-rose-500 text-white rounded-full px-2 py-0.5">{badge}</span>}
+        {badge !== undefined && Number(badge) === 0 && <span className="text-sm font-bold text-yellow-400">{badge}</span>}
     </button>
 );
 
@@ -70,20 +70,20 @@ const MobileMenuScreen: React.FC<{
   friendRequestCount: number;
 }> = ({ currentUser, onNavigate, onLogout, friendRequestCount }) => {
     return (
-        <div className="h-full w-full overflow-y-auto p-4 bg-slate-100 text-gray-800">
+        <div className="h-full w-full overflow-y-auto p-4 bg-slate-900 text-slate-200">
             <div className="max-w-md mx-auto">
                 <button 
                     onClick={() => onNavigate(AppView.PROFILE, { username: currentUser.username })}
-                    className="w-full flex items-center gap-4 p-4 mb-6 rounded-lg bg-white hover:bg-gray-50 transition-colors border border-gray-200"
+                    className="w-full flex items-center gap-4 p-4 mb-6 rounded-lg bg-slate-800 hover:bg-slate-700/50 transition-colors border border-slate-700"
                 >
                     <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-16 h-16 rounded-full" />
                     <div>
                         <h2 className="text-2xl font-bold">{currentUser.name}</h2>
-                        <p className="text-gray-500">View your profile</p>
+                        <p className="text-slate-400">View your profile</p>
                     </div>
                 </button>
 
-                <div className="space-y-2 bg-white p-2 rounded-lg border border-gray-200">
+                <div className="space-y-2 bg-slate-800 p-2 rounded-lg border border-slate-700">
                     <MenuItem 
                         iconName="users" 
                         label="Friends" 
@@ -118,8 +118,8 @@ const MobileMenuScreen: React.FC<{
                     />
                 </div>
 
-                <div className="mt-8 border-t border-gray-200 pt-4">
-                     <button onClick={onLogout} className="w-full flex items-center gap-4 p-4 text-left text-lg text-red-600 hover:bg-red-500/10 rounded-lg transition-colors">
+                <div className="mt-8 border-t border-slate-700 pt-4">
+                     <button onClick={onLogout} className="w-full flex items-center gap-4 p-4 text-left text-lg text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
                         </svg>
@@ -131,8 +131,6 @@ const MobileMenuScreen: React.FC<{
     );
 };
 
-
-// FIX: This component was incomplete. I've added the missing closing brackets, state management, render logic, and export statement.
 export const UserApp: React.FC = () => {
   const [viewStack, setViewStack] = useState<ViewState[]>([{ view: AppView.AUTH }]);
   const [user, setUser] = useState<User | null>(null);
@@ -172,8 +170,6 @@ export const UserApp: React.FC = () => {
     }
   }, []);
 
-  // Effect 1: Handles Auth state and sets up/tears down data listeners.
-  // This runs once on mount and manages the user session.
   useEffect(() => {
       let unsubscribeFromAuth: () => void;
       try {
@@ -214,20 +210,55 @@ export const UserApp: React.FC = () => {
     setViewStack([{ view: AppView.AUTH }]);
   };
 
+  const handleMicClick = () => {
+    if (voiceState === VoiceState.IDLE) {
+        setVoiceState(VoiceState.LISTENING);
+        setTtsMessage('Listening... (Voice input is simulated in this app)');
+        setTimeout(() => {
+            // FIX: Use functional update to get current state and avoid stale closure.
+            setVoiceState(currentVoiceState => {
+                if (currentVoiceState === VoiceState.LISTENING) { // Check if user hasn't cancelled
+                    setTtsMessage(''); // Reset placeholder
+                    return VoiceState.IDLE;
+                }
+                return currentVoiceState;
+            });
+        }, 5000);
+    } else {
+        setVoiceState(VoiceState.IDLE);
+        setTtsMessage('Voice input cancelled.');
+    }
+  };
+
+  const handleSendCommand = (command: string) => {
+      if (command.trim()) {
+          setLastCommand(command.trim());
+          setCommandInputValue(''); // Clear input after sending
+      }
+  };
+
+
   const renderCurrentView = () => {
     if (!user) {
-      // FIX: Pass ttsMessage prop to AuthScreen
-      return <AuthScreen ttsMessage={ttsMessage} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} initialAuthError={globalAuthError} />;
+      return <AuthScreen 
+        ttsMessage={ttsMessage} 
+        onSetTtsMessage={setTtsMessage} 
+        lastCommand={lastCommand} 
+        onCommandProcessed={() => setLastCommand(null)} 
+        initialAuthError={globalAuthError}
+        voiceState={voiceState}
+        onMicClick={handleMicClick}
+        onSendCommand={handleSendCommand}
+        commandInputValue={commandInputValue}
+        setCommandInputValue={setCommandInputValue}
+      />;
     }
     switch (currentView.view) {
         case AppView.FEED:
-            // FIX: Corrected geminiService call for reactToPost.
             return <FeedScreen isLoading={isLoadingFeed} posts={posts} currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onStartCreatePost={(props) => handleNavigate(AppView.CREATE_POST, props)} onRewardedAdClick={(campaign) => { setCampaignForAd(campaign); setIsShowingAd(true); }} onAdViewed={(campaignId) => console.log(`Ad ${campaignId} viewed`)} onAdClick={(post) => setViewingAd(post)} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} onSharePost={(post) => setShareModalPost(post)} onCommandProcessed={() => setLastCommand(null)} scrollState={scrollState} onSetScrollState={setScrollState} onNavigate={handleNavigate} friends={friends} setSearchResults={setSearchResults} />;
         case AppView.PROFILE:
-            // FIX: Corrected geminiService call for reactToPost.
             return <ProfileScreen username={currentView.props.username} currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onStartMessage={(recipient) => handleNavigate(AppView.MESSAGES, { recipient })} onEditProfile={() => handleNavigate(AppView.SETTINGS)} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onBlockUser={(targetUser) => geminiService.blockUser(user.id, targetUser.id)} onCurrentUserUpdate={setUser} onPostCreated={(newPost) => setPosts(p => [newPost, ...p])} onSharePost={(post) => setShareModalPost(post)} onCommandProcessed={() => setLastCommand(null)} scrollState={scrollState} onSetScrollState={setScrollState} onNavigate={handleNavigate} onGoBack={handleGoBack} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })}/>
         case AppView.SETTINGS:
-            // FIX: Corrected geminiService call to getUserProfileById.
             return <SettingsScreen currentUser={user} onUpdateSettings={(settings) => geminiService.updateProfile(user.id, settings).then(() => geminiService.getUserProfileById(user.id).then(u => u && setUser(u)))} onUnblockUser={(targetUser) => geminiService.unblockUser(user.id, targetUser.id)} onDeactivateAccount={() => geminiService.deactivateAccount(user.id).then(handleLogout)} lastCommand={lastCommand} onSetTtsMessage={setTtsMessage} scrollState={scrollState} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} />;
         case AppView.CREATE_POST:
             return <CreatePostScreen user={user} onPostCreated={() => handleGoBack()} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onDeductCoinsForImage={() => geminiService.updateVoiceCoins(user.id, -IMAGE_GENERATION_COST)} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} {...currentView.props} />;
@@ -236,7 +267,6 @@ export const UserApp: React.FC = () => {
         case AppView.MESSAGES:
             return <MessageScreen currentUser={user} recipientUser={currentView.props.recipient} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} scrollState={scrollState} onBlockUser={(targetUser) => geminiService.blockUser(user.id, targetUser.id)} onGoBack={handleGoBack} onCommandProcessed={() => setLastCommand(null)} />;
         case AppView.POST_DETAILS:
-            // FIX: Corrected geminiService call for reactToPost.
             return <PostDetailScreen postId={currentView.props.postId} currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onStartComment={(postId, replyTo) => handleNavigate(AppView.CREATE_COMMENT, { postId, replyTo })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onSharePost={(post) => setShareModalPost(post)} scrollState={scrollState} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} />;
         case AppView.FRIENDS:
              return <FriendsScreen currentUser={user} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} scrollState={scrollState} onCommandProcessed={() => setLastCommand(null)} onNavigate={handleNavigate} onGoBack={handleGoBack} {...currentView.props} />;
@@ -257,7 +287,6 @@ export const UserApp: React.FC = () => {
         case AppView.GROUPS_HUB:
             return <GroupsHubScreen currentUser={user} onNavigate={handleNavigate} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} groups={groups} onGroupCreated={(newGroup) => handleNavigate(AppView.GROUP_PAGE, { groupId: newGroup.id })} />;
         case AppView.GROUP_PAGE:
-            // FIX: Corrected geminiService call for reactToPost.
             return <GroupPageScreen currentUser={user} groupId={currentView.props.groupId} onNavigate={handleNavigate} onSetTtsMessage={setTtsMessage} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onSharePost={(post) => setShareModalPost(post)} onStartCreatePost={(props) => handleNavigate(AppView.CREATE_POST, props)} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} onGoBack={handleGoBack} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} />;
         case AppView.MANAGE_GROUP:
             return <ManageGroupScreen currentUser={user} groupId={currentView.props.groupId} onNavigate={handleNavigate} onSetTtsMessage={setTtsMessage} />;
@@ -274,10 +303,8 @@ export const UserApp: React.FC = () => {
         case AppView.STORY_PRIVACY:
             return <StoryPrivacyScreen {...currentView.props} onGoBack={handleGoBack} />;
         case AppView.EXPLORE:
-            // FIX: Corrected geminiService call for reactToPost.
             return <ExploreScreen currentUser={user} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} />;
         case AppView.REELS:
-            // FIX: Corrected geminiService call for reactToPost.
             return <ReelsScreen isLoading={isLoadingReels} posts={reelsPosts} currentUser={user} onReactToPost={(postId, emoji) => geminiService.reactToPost(postId, user.id, emoji)} onViewPost={(postId) => handleNavigate(AppView.POST_DETAILS, { postId })} onOpenProfile={(username) => handleNavigate(AppView.PROFILE, { username })} onStartComment={(postId) => handleNavigate(AppView.CREATE_COMMENT, { postId })} onNavigate={handleNavigate} />;
         case AppView.CREATE_REEL:
             return <CreateReelScreen currentUser={user} onGoBack={handleGoBack} onReelCreated={handleGoBack} onSetTtsMessage={setTtsMessage} />;
@@ -293,16 +320,41 @@ export const UserApp: React.FC = () => {
   }
 
   if (isAuthLoading) {
-    return <div className="h-screen w-screen bg-gray-100 flex items-center justify-center text-gray-800"><p>Loading session...</p></div>;
+    return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-slate-300"><p>Loading session...</p></div>;
   }
 
   if (!user) {
-    return <AuthScreen ttsMessage={ttsMessage} onSetTtsMessage={setTtsMessage} lastCommand={lastCommand} onCommandProcessed={() => setLastCommand(null)} initialAuthError={globalAuthError} />;
+      return <AuthScreen 
+        ttsMessage={ttsMessage} 
+        onSetTtsMessage={setTtsMessage} 
+        lastCommand={lastCommand} 
+        onCommandProcessed={() => setLastCommand(null)} 
+        initialAuthError={globalAuthError}
+        voiceState={voiceState}
+        onMicClick={handleMicClick}
+        onSendCommand={handleSendCommand}
+        commandInputValue={commandInputValue}
+        setCommandInputValue={setCommandInputValue}
+      />;
   }
 
   return (
-    <div className="h-screen w-screen bg-gray-100 flex font-sans overflow-hidden text-gray-900">
-        {renderCurrentView()}
+    <div className="h-screen w-screen bg-slate-900 flex flex-col font-sans overflow-hidden text-slate-200 text-shadow-lg">
+      <main className="flex-grow overflow-hidden relative">
+        <div className="absolute inset-0 h-full w-full">
+          {renderCurrentView()}
+        </div>
+      </main>
+      <footer className="flex-shrink-0">
+         <VoiceCommandInput
+            onSendCommand={handleSendCommand}
+            voiceState={voiceState}
+            onMicClick={handleMicClick}
+            value={commandInputValue}
+            onValueChange={setCommandInputValue}
+            placeholder={ttsMessage}
+        />
+      </footer>
     </div>
   );
 };

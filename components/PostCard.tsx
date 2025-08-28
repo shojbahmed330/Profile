@@ -17,10 +17,8 @@ interface PostCardProps {
   onAuthorClick: (username: string) => void;
   onAdClick?: (post: Post) => void;
   onDeletePost?: (postId: string) => void;
-  // FIX: Add missing props to prevent type errors in parent components
   onStartComment?: (postId: string) => void;
   onSharePost?: (post: Post) => void;
-  // For group functionality
   groupRole?: GroupRole;
   isGroupAdmin?: boolean;
   isPinned?: boolean;
@@ -31,11 +29,11 @@ interface PostCardProps {
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
 const REACTION_COLORS: { [key: string]: string } = {
-    '👍': 'text-blue-500',
-    '❤️': 'text-red-500',
-    '😂': 'text-yellow-500',
-    '😮': 'text-yellow-500',
-    '😢': 'text-yellow-500',
+    '👍': 'text-sky-400',
+    '❤️': 'text-rose-500',
+    '😂': 'text-yellow-400',
+    '😮': 'text-yellow-400',
+    '😢': 'text-yellow-400',
     '😡': 'text-orange-500',
 };
 
@@ -50,12 +48,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
 
   const myReaction = React.useMemo(() => {
     if (!currentUser || !post.reactions) return null;
+    let reaction = null;
     for (const emoji in post.reactions) {
         if (post.reactions[emoji].includes(currentUser.id)) {
-            return emoji;
+            reaction = emoji;
+            break;
         }
     }
-    return null;
+    return reaction;
   }, [currentUser, post.reactions]);
 
   const topReactions = React.useMemo(() => {
@@ -118,7 +118,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
 
   const handleDefaultReact = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Toggles the existing reaction, or defaults to '👍' if none exists
     onReact(post.id, myReaction || '👍');
   };
   
@@ -204,7 +203,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
     if (post.postType === 'profile_picture_change' && post.newPhotoUrl) {
         return (
              <div className="mb-4 flex justify-center">
-                <div className='w-48 h-48 rounded-full overflow-hidden bg-gray-200'>
+                <div className='w-48 h-48 rounded-full overflow-hidden bg-slate-700'>
                      <img src={post.newPhotoUrl} alt="Updated profile" className="w-full h-full object-cover" />
                 </div>
             </div>
@@ -213,7 +212,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
 
     if (post.postType === 'cover_photo_change' && post.newPhotoUrl) {
         return (
-             <div className="rounded-lg overflow-hidden aspect-video bg-gray-200 mb-4">
+             <div className="rounded-lg overflow-hidden aspect-video bg-slate-700 mb-4">
                 <img src={post.newPhotoUrl} alt="Updated cover" className="w-full h-full object-cover" />
             </div>
         );
@@ -236,7 +235,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
     }
     if (post.imageUrl) {
       return (
-        <div className="rounded-lg overflow-hidden bg-gray-200 -mx-6 mb-4">
+        <div className="rounded-lg overflow-hidden bg-slate-700 -mx-6 mb-4">
             <img src={post.imageUrl} alt={post.imagePrompt || 'Post image'} className="w-full h-auto object-contain" />
         </div>
       );
@@ -248,7 +247,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
   const renderAudioPlayer = () => {
     if (post.audioUrl && post.audioUrl !== '#') {
       return (
-        <div className="relative h-24 bg-gray-100 rounded-xl overflow-hidden group/waveform mb-4">
+        <div className="relative h-24 bg-slate-700/50 rounded-xl overflow-hidden group/waveform mb-4">
             <audio ref={audioRef} src={post.audioUrl} onEnded={onPlayPause} />
             <Waveform isPlaying={isPlaying && isActive} />
             <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 group-hover/waveform:opacity-100 transition-opacity duration-300">
@@ -257,7 +256,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
                     e.stopPropagation();
                     onPlayPause();
                 }}
-                className="w-16 h-16 rounded-full bg-blue-600/70 text-white flex items-center justify-center transform scale-75 group-hover/waveform:scale-100 transition-transform duration-300 ease-in-out hover:bg-blue-500"
+                className="w-16 h-16 rounded-full bg-lime-500/70 text-black flex items-center justify-center transform scale-75 group-hover/waveform:scale-100 transition-transform duration-300 ease-in-out hover:bg-lime-400"
                 aria-label={isPlaying ? "Pause post" : "Play post"}
             >
                 <Icon name={isPlaying && isActive ? 'pause' : 'play'} className="w-8 h-8" />
@@ -274,7 +273,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
 
     return (
       <div className="space-y-2 mb-4">
-        <p className="font-semibold text-gray-800 text-lg">{post.poll.question}</p>
+        <p className="font-semibold text-slate-200 text-lg">{post.poll.question}</p>
         {post.poll.options.map((option, index) => {
           const percentage = totalVotes > 0 ? (option.votes / totalVotes) * 100 : 0;
           const hasVotedThis = userVotedOptionIndex === index;
@@ -285,24 +284,24 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
               disabled={userVotedOptionIndex !== -1}
               className={`w-full text-left p-2.5 rounded-md border transition-colors relative overflow-hidden ${
                 hasVotedThis
-                  ? 'bg-blue-100 border-blue-400'
-                  : 'bg-slate-100 border-slate-200 hover:bg-slate-200'
+                  ? 'bg-lime-900/50 border-lime-500/50'
+                  : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'
               } ${userVotedOptionIndex === -1 ? 'cursor-pointer' : 'cursor-default'}`}
             >
               <div
-                className="absolute top-0 left-0 h-full bg-blue-200"
+                className="absolute top-0 left-0 h-full bg-lime-500/30"
                 style={{ width: `${userVotedOptionIndex !== -1 ? percentage : 0}%`, transition: 'width 0.5s ease' }}
               ></div>
               <div className="relative flex justify-between items-center z-10">
-                <span className={`font-medium ${hasVotedThis ? 'text-blue-800' : 'text-gray-800'}`}>{option.text}</span>
+                <span className={`font-medium ${hasVotedThis ? 'text-lime-300' : 'text-slate-200'}`}>{option.text}</span>
                 {userVotedOptionIndex !== -1 && (
-                  <span className="text-sm text-gray-600 font-semibold">{Math.round(percentage)}% ({option.votes})</span>
+                  <span className="text-sm text-slate-400 font-semibold">{Math.round(percentage)}% ({option.votes})</span>
                 )}
               </div>
             </button>
           );
         })}
-        <p className="text-xs text-gray-500">{totalVotes} votes</p>
+        <p className="text-xs text-slate-500">{totalVotes} votes</p>
       </div>
     );
   };
@@ -313,16 +312,16 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
     if (!bestAnswer) return null;
 
     return (
-        <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
+        <div className="mb-4 p-3 bg-green-900/30 border-l-4 border-green-500 rounded-r-lg">
             <div className="flex items-center gap-2 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                <h4 className="font-bold text-green-700">Best Answer</h4>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                <h4 className="font-bold text-green-400">Best Answer</h4>
             </div>
             <div className="flex items-start gap-2">
                 <img src={bestAnswer.author.avatarUrl} alt={bestAnswer.author.name} className="w-8 h-8 rounded-full"/>
                 <div>
-                    <p className="font-semibold text-sm text-gray-800">{bestAnswer.author.name}</p>
-                    <p className="text-gray-700 text-sm"><TaggedContent text={bestAnswer.text || ''} onTagClick={onAuthorClick} /></p>
+                    <p className="font-semibold text-sm text-slate-200">{bestAnswer.author.name}</p>
+                    <p className="text-slate-300 text-sm"><TaggedContent text={bestAnswer.text || ''} onTagClick={onAuthorClick} /></p>
                 </div>
             </div>
         </div>
@@ -338,22 +337,22 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
     <div
       onClick={handleView}
       className={`
-        bg-white rounded-lg p-5 sm:p-6 w-full max-w-lg mx-auto transition-all duration-300 ease-in-out shadow-md
-        ${!post.isSponsored ? 'cursor-pointer hover:bg-gray-50' : ''}
-        ${isActive ? 'border-blue-500/50 ring-2 ring-blue-500/20' : 'border border-gray-200'}
+        bg-slate-800 rounded-lg p-5 sm:p-6 w-full max-w-lg mx-auto transition-all duration-300 ease-in-out shadow-lg shadow-lime-500/5
+        ${!post.isSponsored ? 'cursor-pointer hover:bg-slate-700/50' : ''}
+        ${isActive ? 'border-lime-500/50 ring-2 ring-lime-500/20' : 'border border-slate-700/50'}
       `}
     >
       <div className="flex items-start justify-between">
         <button onClick={handleAuthor} className="flex items-center text-left mb-4 group flex-grow">
-          <img src={post.author.avatarUrl} alt={post.author.name} className="w-12 h-12 rounded-full mr-4 transition-all duration-300 group-hover:ring-2 group-hover:ring-offset-2 group-hover:ring-offset-white group-hover:ring-blue-500" />
+          <img src={post.author.avatarUrl} alt={post.author.name} className="w-12 h-12 rounded-full mr-4 transition-all duration-300 group-hover:ring-2 group-hover:ring-offset-2 group-hover:ring-offset-slate-800 group-hover:ring-lime-500" />
           <div>
             <div className="flex items-center">
-                <p className="font-bold text-gray-900 text-lg transition-colors group-hover:text-blue-600">
+                <p className="font-bold text-slate-100 text-lg transition-colors group-hover:text-lime-400">
                 {post.isSponsored ? post.sponsorName : post.author.name}
                 </p>
                 {groupRole && <GroupRoleBadge role={groupRole} />}
             </div>
-            <p className="text-gray-500 text-sm">
+            <p className="text-slate-400 text-sm">
                 {post.groupName ? (
                     <span className="hover:underline">{post.groupName}</span>
                 ) : (
@@ -364,16 +363,16 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
         </button>
         {canShowMenu && (
           <div className="relative" ref={menuRef}>
-            <button onClick={(e) => {e.stopPropagation(); setMenuOpen(p => !p)}} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full">
+            <button onClick={(e) => {e.stopPropagation(); setMenuOpen(p => !p)}} className="p-2 text-slate-400 hover:bg-slate-700/50 rounded-full">
               <Icon name="ellipsis-vertical" className="w-5 h-5"/>
             </button>
             {isMenuOpen && (
-              <div className="absolute top-full right-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-10 text-sm font-semibold">
+              <div className="absolute top-full right-0 mt-1 w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-10 text-sm font-semibold">
                  {isGroupAdmin && (
-                    <button onClick={handlePin} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-800">{isPinned ? 'Unpin Post' : 'Pin Post'}</button>
+                    <button onClick={handlePin} className="w-full text-left px-4 py-2 hover:bg-slate-700/50 text-slate-200">{isPinned ? 'Unpin Post' : 'Pin Post'}</button>
                  )}
                  {isAuthor && (
-                     <button onClick={handleDelete} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-500/10">Delete Post</button>
+                     <button onClick={handleDelete} className="w-full text-left px-4 py-2 text-red-400 hover:bg-red-500/20">Delete Post</button>
                  )}
               </div>
             )}
@@ -382,12 +381,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
       </div>
       
       <div className="flex items-center gap-2 mb-4">
-        {post.postType === 'announcement' && <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">Announcement</span>}
-        {post.postType === 'question' && <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-blue-100 text-blue-800">Question</span>}
+        {post.postType === 'announcement' && <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-300">Announcement</span>}
+        {post.postType === 'question' && <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-sky-500/20 text-sky-300">Question</span>}
       </div>
 
       <div className="space-y-4">
-        {post.caption && <p className={`text-gray-800 text-base leading-relaxed ${fontClass} ${fontWeightClass} ${fontStyleClass}`}><TaggedContent text={post.caption} onTagClick={onAuthorClick} /></p>}
+        {post.caption && <p className={`text-slate-200 text-base leading-relaxed ${fontClass} ${fontWeightClass} ${fontStyleClass}`}><TaggedContent text={post.caption} onTagClick={onAuthorClick} /></p>}
         
         {renderBestAnswer()}
         {renderPoll()}
@@ -399,17 +398,17 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
          <div className="flex items-center justify-between pt-3">
             <div className="flex items-center">
                 {topReactions.map(emoji => 
-                    <span key={emoji} className="text-lg -ml-1 border-2 border-white rounded-full">{emoji}</span>
+                    <span key={emoji} className="text-lg -ml-1 border-2 border-slate-800 rounded-full">{emoji}</span>
                 )}
-                <span className="text-sm text-gray-500 ml-2">{post.reactionCount}</span>
+                <span className="text-sm text-slate-400 ml-2">{post.reactionCount}</span>
             </div>
         </div>
       )}
 
 
-      <div className="flex items-center text-gray-600 gap-2 sm:gap-4 pt-2 mt-2 border-t border-gray-200">
+      <div className="flex items-center text-slate-400 gap-2 sm:gap-4 pt-2 mt-2 border-t border-slate-700">
         {post.isSponsored ? (
-            <button onClick={handleAdClick} className="flex-grow flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors duration-200">
+            <button onClick={handleAdClick} className="flex-grow flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-500 transition-colors duration-200">
               <span className="font-semibold text-base">{getAdButtonText()}</span>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
@@ -427,25 +426,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, isActive,
                     {isPickerOpen && (
                         <div 
                             onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
-                            className="absolute bottom-full mb-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full p-1.5 flex items-center gap-1 shadow-lg animate-fade-in-fast"
+                            className="absolute bottom-full mb-2 bg-slate-900/90 backdrop-blur-sm border border-lime-500/20 rounded-full p-1.5 flex items-center gap-1 shadow-lg animate-fade-in-fast"
                         >
                             {REACTIONS.map(emoji => (
-                                <button key={emoji} onClick={(e) => handleReaction(e, emoji)} className="text-3xl p-1 rounded-full hover:bg-gray-200/50 transition-transform hover:scale-125">
+                                <button key={emoji} onClick={(e) => handleReaction(e, emoji)} className="text-3xl p-1 rounded-full hover:bg-slate-700/50 transition-transform hover:scale-125">
                                     {emoji}
                                 </button>
                             ))}
                         </div>
                     )}
-                    <button onClick={handleDefaultReact} className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200 ${myReaction ? REACTION_COLORS[myReaction] : 'text-gray-600'}`}>
+                    <button onClick={handleDefaultReact} className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-700/50 transition-colors duration-200 ${myReaction ? REACTION_COLORS[myReaction] : 'text-slate-400'}`}>
                       <span className="text-xl transition-transform duration-200 ease-in-out" style={{transform: myReaction ? 'scale(1.1)' : 'scale(1)'}}>{myReaction || '👍'}</span>
                       <span className="font-semibold text-base">{myReaction ? myReaction === '👍' ? 'Like' : 'Reacted' : 'React'}</span>
                     </button>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); onStartComment ? onStartComment(post.id) : onViewPost(post.id); }} className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                <button onClick={(e) => { e.stopPropagation(); onStartComment ? onStartComment(post.id) : onViewPost(post.id); }} className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-700/50 transition-colors duration-200">
                   <Icon name="comment" className="w-6 h-6" />
                   <span className="font-semibold text-base">Comment</span>
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); onSharePost?.(post); }} className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                <button onClick={(e) => { e.stopPropagation(); onSharePost?.(post); }} className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-700/50 transition-colors duration-200">
                   <Icon name="share" className="w-6 h-6" />
                   <span className="font-semibold text-base">Share</span>
                 </button>

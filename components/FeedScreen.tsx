@@ -88,7 +88,7 @@ const FeedScreen: React.FC<FeedScreenProps> = ({
     const injectAd = async () => {
         if (!isLoading && !adInjected && posts.length > 2) {
             setAdInjected(true);
-            // FIX: Changed call from firebaseService to geminiService for consistency.
+            // FIX: Changed from firebaseService to geminiService to use the unified service layer
             const adPost = await geminiService.getInjectableAd(currentUser);
             if (adPost) {
                 const newPosts = [...posts];
@@ -381,7 +381,7 @@ const FeedScreen: React.FC<FeedScreenProps> = ({
                 user={currentUser} 
                 onStartCreatePost={onStartCreatePost}
             />
-            <div className="w-full border-t border-gray-200" />
+            <div className="w-full border-t border-slate-700" />
             <RewardedAdWidget campaign={rewardedCampaign} onAdClick={onRewardedAdClick} />
             {posts.map((post, index) => (
                 <div 

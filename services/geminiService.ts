@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { NLUResponse, MusicTrack, User, Post, Campaign, FriendshipStatus, Comment, Message, Conversation, ChatSettings, LiveAudioRoom, LiveVideoRoom, Group, Story, Event, GroupChat, JoinRequest, GroupCategory, StoryPrivacy, PollOption, AdminUser, CategorizedExploreFeed, Report } from '../types';
+import { NLUResponse, MusicTrack, User, Post, Campaign, FriendshipStatus, Comment, Message, Conversation, ChatSettings, LiveAudioRoom, LiveVideoRoom, Group, Story, Event, GroupChat, JoinRequest, GroupCategory, StoryPrivacy, PollOption, AdminUser, CategorizedExploreFeed, Report, Lead } from '../types';
 import { VOICE_EMOJI_MAP, MOCK_MUSIC_LIBRARY, DEFAULT_AVATARS, DEFAULT_COVER_PHOTOS } from '../constants';
 import { firebaseService } from './firebaseService';
 
@@ -273,7 +274,7 @@ export const geminiService = {
                 dynamicSystemInstruction += `\n\n---\nCONTEXTUAL AWARENESS:\nAvailable names: [${uniqueNames.map(name => `"${name}"`).join(', ')}]`;
             }
 
-            // FIX: Use gemini-2.5-flash model instead of gemini-1.5-flash
+            // FIX: Use gemini-2.5-flash model instead of gemini-pro
             const nluResponse = await ai.models.generateContent({
                 model: "gemini-2.5-flash",
                 contents: command,
@@ -297,7 +298,7 @@ export const geminiService = {
 
     async generateImageForPost(prompt: string): Promise<string | null> {
         try {
-            // FIX: Use imagen-4.0-generate-001 model instead of imagen-3.0-generate-002
+            // FIX: Use imagen-4.0-generate-001 model
             const imageResponse = await ai.models.generateImages({
                 model: 'imagen-4.0-generate-001',
                 prompt: prompt,
@@ -396,7 +397,6 @@ export const geminiService = {
             };
         }
     },
-    // FIX: Added all missing passthrough functions to firebaseService
     // --- Passthrough functions to firebaseService ---
     getMusicLibrary: (): MusicTrack[] => MOCK_MUSIC_LIBRARY,
     reactToPost: (postId: string, userId: string, emoji: string) => firebaseService.reactToPost(postId, userId, emoji),
